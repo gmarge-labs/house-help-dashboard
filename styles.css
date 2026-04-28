@@ -1074,11 +1074,16 @@ button {
 
 .login-card form {
   width: min(420px, 100%);
+  justify-self: center;
 }
 
 .login-card .field {
   text-align: left;
   width: 100%;
+}
+
+.login-card .actions {
+  justify-content: center;
 }
 
 .login-switch {
