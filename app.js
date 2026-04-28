@@ -727,10 +727,6 @@ function renderLogin() {
     <main class="login-wrap">
       <section class="login-card">
         <div class="eyebrow">${escapeHtml(household.name)}</div>
-        <h1>Enter a PIN to continue.</h1>
-        <p class="muted">
-          Choose how you are signing in. The planner can manage the schedule and open the checklist view. The caretaker can only open the checklist.
-        </p>
 
         <div class="login-actions">
           <div class="login-switch">
@@ -2062,9 +2058,8 @@ function renderHelperDashboard() {
               <div class="helper-singleline-side">
                 <aside class="score-card score-card-compact">
                   <div class="score-card-copy">
-                    <span class="score-label">At a glance</span>
-                    <strong>${tasks.length ? remaining : "Off"}</strong>
-                    <p>${tasks.length ? (remaining === 1 ? "task left undone" : "tasks left undone") : "day"}</p>
+                    <strong>${tasks.length ? `${completed}/${tasks.length}` : "0/0"}</strong>
+                    <p>tasks completed</p>
                   </div>
                   <div class="progress-wrap">
                     <span>${progress}% complete</span>
