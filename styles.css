@@ -149,14 +149,6 @@ button {
   flex-wrap: wrap;
 }
 
-.helper-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 8px;
-  padding-right: 0;
-  margin-right: -4px;
-}
-
 .app-title {
   margin: 12px 0 8px;
   font-family: "Fraunces", serif;
@@ -672,6 +664,16 @@ button {
 .helper-score-wrap {
   display: flex;
   justify-content: flex-end;
+}
+
+.helper-singleline-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.helper-logout-button {
+  flex-shrink: 0;
 }
 
 .helper-topline {

@@ -2060,6 +2060,7 @@ function renderHelperDashboard() {
                 <h2 class="page-title">Checklist for ${formatDate(selectedDate, { weekday: true })}</h2>
               </div>
               <div class="helper-singleline-side">
+                <button class="btn btn-secondary btn-sm helper-logout-button" data-logout type="button">Log out</button>
                 <aside class="score-card score-card-compact">
                   <div class="score-card-copy">
                     <span class="score-label">At a glance</span>
@@ -2157,10 +2158,6 @@ function renderHelperDashboard() {
                 </div>
               </div>
             </section>
-
-            <footer class="helper-footer">
-              <button class="btn btn-secondary" data-logout type="button">Log out</button>
-            </footer>
 
           </section>
         </section>
