@@ -1,0 +1,9 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /household_dashboards/{dashboardId} {
+      allow read, write: if true;
+    }
+  }
+}
