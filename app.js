@@ -83,6 +83,8 @@ function defaultState() {
     helperDate: todayString(),
     duplicateTargetDate: futureDate(1),
     openInstructionTaskId: null,
+    editingTaskId: null,
+    editingTemplateId: null,
     flash: "",
   };
 }
@@ -348,6 +350,31 @@ function formatShortDay(dateString) {
     weekday: "short",
     month: "short",
     day: "numeric",
+  });
+}
+
+function addDays(dateString, offset) {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function getMonthMatrix(dateString) {
+  const base = new Date(`${dateString}T12:00:00`);
+  const monthStart = new Date(base.getFullYear(), base.getMonth(), 1, 12);
+  const startOffset = monthStart.getDay();
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(gridStart.getDate() - startOffset);
+
+  return Array.from({ length: 35 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const iso = date.toISOString().slice(0, 10);
+    return {
+      date: iso,
+      day: date.getDate(),
+      inMonth: date.getMonth() === base.getMonth(),
+    };
   });
 }
 
@@ -896,6 +923,7 @@ function renderPlannerPage() {
   const upcoming = getUpcomingDates();
   const feeSummary = getDayFeeSummary(selectedDate);
   const recurringTemplates = getRecurringTemplatesForDate(selectedDate);
+  const monthDays = getMonthMatrix(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -983,7 +1011,34 @@ function renderPlannerPage() {
                           </div>
                           <span class="pill">${escapeHtml(task.area)}</span>
                         </header>
+                        ${
+                          state.editingTaskId === task.id
+                            ? `
+                              <form class="inline-edit-form" data-edit-task-form="${task.id}">
+                                <div class="form-grid">
+                                  <div class="field">
+                                    <label>Task name</label>
+                                    <input name="title" value="${escapeHtml(task.title)}" required />
+                                  </div>
+                                  <div class="field">
+                                    <label>Area</label>
+                                    <input name="area" value="${escapeHtml(task.area)}" />
+                                  </div>
+                                </div>
+                                <div class="field" style="margin-top: 14px;">
+                                  <label>Instructions</label>
+                                  <textarea name="notes">${escapeHtml(task.notes || "")}</textarea>
+                                </div>
+                                <div class="actions">
+                                  <button class="btn btn-primary btn-sm" type="submit">Save task</button>
+                                  <button class="btn btn-ghost btn-sm" data-cancel-edit-task="${task.id}" type="button">Cancel</button>
+                                </div>
+                              </form>
+                            `
+                            : ""
+                        }
                         <div class="task-actions" style="margin-top: 14px;">
+                          <button class="btn btn-secondary" data-edit-task="${task.id}" type="button">Edit</button>
                           <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="up" type="button" ${canMoveUp ? "" : "disabled"}>Move up</button>
                           <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="down" type="button" ${canMoveDown ? "" : "disabled"}>Move down</button>
                           <button class="btn btn-ghost" data-delete-task="${task.id}" type="button">Remove</button>
@@ -1044,6 +1099,33 @@ function renderPlannerPage() {
               </div>
             `
         }
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Monthly view</h2>
+            <p class="small-note">See planned days, task counts, and daily pay across the month.</p>
+          </div>
+        </div>
+        <div class="month-grid-labels">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="month-grid">
+          ${monthDays
+            .map((day) => {
+              const taskCount = getAssignmentsForDate(day.date).length;
+              const fee = getDayFeeSummary(day.date);
+              return `
+                <button class="month-cell ${day.inMonth ? "" : "month-cell-muted"} ${day.date === selectedDate ? "month-cell-active" : ""}" data-pick-date="${day.date}" type="button">
+                  <strong>${day.day}</strong>
+                  <span>${taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "Off"}</span>
+                  <small>$${fee.total.toFixed(0)}</small>
+                </button>
+              `;
+            })
+            .join("")}
+        </div>
       </section>
 
       <section class="panel">
@@ -1179,7 +1261,62 @@ function renderTemplatesPage() {
                     </div>
                     <span class="pill">${escapeHtml(template.area || "General")}</span>
                   </header>
+                  ${
+                    state.editingTemplateId === template.id
+                      ? `
+                        <form class="inline-edit-form" data-edit-template-form="${template.id}">
+                          <div class="form-grid">
+                            <div class="field">
+                              <label>Task name</label>
+                              <input name="title" value="${escapeHtml(template.title)}" required />
+                            </div>
+                            <div class="field">
+                              <label>Area</label>
+                              <input name="area" value="${escapeHtml(template.area || "")}" />
+                            </div>
+                            <div class="field">
+                              <label>Recurrence</label>
+                              <select name="recurrenceCadence">
+                                <option value="manual" ${template.recurrence?.cadence === "manual" ? "selected" : ""}>Manual only</option>
+                                <option value="every_visit" ${template.recurrence?.cadence === "every_visit" ? "selected" : ""}>Every visit</option>
+                                <option value="weekly" ${template.recurrence?.cadence === "weekly" ? "selected" : ""}>Weekly</option>
+                                <option value="biweekly" ${template.recurrence?.cadence === "biweekly" ? "selected" : ""}>Every 2 weeks</option>
+                              </select>
+                            </div>
+                            <div class="field">
+                              <label>Weekday</label>
+                              <select name="recurrenceWeekday">
+                                <option value="" ${template.recurrence?.weekday === "" ? "selected" : ""}>Use selected day</option>
+                                <option value="0" ${template.recurrence?.weekday === "0" ? "selected" : ""}>Sunday</option>
+                                <option value="1" ${template.recurrence?.weekday === "1" ? "selected" : ""}>Monday</option>
+                                <option value="2" ${template.recurrence?.weekday === "2" ? "selected" : ""}>Tuesday</option>
+                                <option value="3" ${template.recurrence?.weekday === "3" ? "selected" : ""}>Wednesday</option>
+                                <option value="4" ${template.recurrence?.weekday === "4" ? "selected" : ""}>Thursday</option>
+                                <option value="5" ${template.recurrence?.weekday === "5" ? "selected" : ""}>Friday</option>
+                                <option value="6" ${template.recurrence?.weekday === "6" ? "selected" : ""}>Saturday</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div class="form-grid" style="margin-top: 14px;">
+                            <div class="field">
+                              <label>Biweekly start date</label>
+                              <input name="recurrenceAnchorDate" type="date" value="${escapeHtml(template.recurrence?.anchorDate || selectedDate)}" />
+                            </div>
+                          </div>
+                          <div class="field" style="margin-top: 14px;">
+                            <label>Notes</label>
+                            <textarea name="notes">${escapeHtml(template.notes || "")}</textarea>
+                          </div>
+                          <div class="actions">
+                            <button class="btn btn-primary btn-sm" type="submit">Save template</button>
+                            <button class="btn btn-ghost btn-sm" data-cancel-edit-template="${template.id}" type="button">Cancel</button>
+                          </div>
+                        </form>
+                      `
+                      : ""
+                  }
                   <div class="template-actions" style="margin-top: 14px;">
+                    <button class="btn btn-secondary" data-edit-template="${template.id}" type="button">Edit</button>
                     <button class="btn btn-secondary" data-assign-template="${template.id}" type="button">Assign to selected day</button>
                     <button class="btn btn-ghost" data-delete-template="${template.id}" type="button">Delete</button>
                   </div>
@@ -1324,6 +1461,9 @@ function renderSettingsPage() {
           </div>
           <span class="pill">${paymentHistory.length} entries</span>
         </div>
+        <div class="actions" style="margin-top: 0; margin-bottom: 18px;">
+          <button class="btn btn-secondary" data-export-payments type="button">Export payment CSV</button>
+        </div>
         <div class="info-card">
           <div class="info-line">
             <strong>Total tracked</strong>
@@ -1437,6 +1577,47 @@ function bindFamilyApp() {
     });
   });
 
+  document.querySelectorAll("[data-edit-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingTaskId = button.dataset.editTask;
+      clearFlash();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-cancel-edit-task]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingTaskId = null;
+      clearFlash();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-edit-task-form]").forEach((formNode) => {
+    formNode.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const date = state.selectedDate || todayString();
+      const taskId = event.currentTarget.dataset.editTaskForm;
+      replaceTasksForDate(
+        date,
+        getAssignmentsForDate(date).map((task) =>
+          task.id === taskId
+            ? {
+                ...task,
+                title: String(form.get("title") || "").trim() || task.title,
+                area: String(form.get("area") || "").trim() || "General",
+                notes: String(form.get("notes") || "").trim(),
+              }
+            : task
+        )
+      );
+      state.editingTaskId = null;
+      setFlash("Task updated.");
+      render();
+    });
+  });
+
   document.querySelectorAll("[data-toggle-instructions]").forEach((button) => {
     button.addEventListener("click", () => {
       state.openInstructionTaskId =
@@ -1514,6 +1695,48 @@ function bindFamilyApp() {
     });
     setFlash("Saved a new reusable task.");
     render();
+  });
+
+  document.querySelectorAll("[data-edit-template]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingTemplateId = button.dataset.editTemplate;
+      clearFlash();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-cancel-edit-template]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.editingTemplateId = null;
+      clearFlash();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-edit-template-form]").forEach((formNode) => {
+    formNode.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const templateId = event.currentTarget.dataset.editTemplateForm;
+      getHousehold().templates = getHousehold().templates.map((template) =>
+        template.id === templateId
+          ? {
+              ...template,
+              title: String(form.get("title") || "").trim() || template.title,
+              area: String(form.get("area") || "").trim(),
+              notes: String(form.get("notes") || "").trim(),
+              recurrence: {
+                cadence: String(form.get("recurrenceCadence") || "manual"),
+                weekday: String(form.get("recurrenceWeekday") || "").trim(),
+                anchorDate: String(form.get("recurrenceAnchorDate") || "").trim(),
+              },
+            }
+          : template
+      );
+      state.editingTemplateId = null;
+      setFlash("Template updated.");
+      render();
+    });
   });
 
   document.querySelectorAll("[data-assign-template]").forEach((button) => {
@@ -1621,6 +1844,29 @@ function bindFamilyApp() {
     link.click();
     URL.revokeObjectURL(url);
     setFlash("Downloaded a backup of your household plan.");
+    render();
+  });
+
+  document.querySelector("[data-export-payments]")?.addEventListener("click", () => {
+    const rows = [
+      ["date", "hours", "rate", "total", "status"],
+      ...getPaymentHistory().map((entry) => [
+        entry.date,
+        String(entry.hours),
+        entry.rate.toFixed(2),
+        entry.total.toFixed(2),
+        entry.paymentStatus,
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `house-help-payments-${todayString()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setFlash("Downloaded payment history CSV.");
     render();
   });
 

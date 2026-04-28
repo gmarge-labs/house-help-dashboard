@@ -473,6 +473,12 @@ button {
   padding: 18px;
 }
 
+.inline-edit-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(33, 49, 61, 0.08);
+}
+
 .task-row {
   padding: 18px 4px;
   border-bottom: 1px solid rgba(33, 49, 61, 0.08);
@@ -592,6 +598,53 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.month-grid-labels {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.month-cell {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 108px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(33, 49, 61, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+  color: var(--ink);
+}
+
+.month-cell strong {
+  font-size: 1rem;
+}
+
+.month-cell span,
+.month-cell small {
+  color: var(--muted);
+}
+
+.month-cell-active {
+  border-color: rgba(29, 122, 114, 0.35);
+  box-shadow: 0 0 0 3px rgba(29, 122, 114, 0.12);
+}
+
+.month-cell-muted {
+  opacity: 0.5;
 }
 
 .dashboard-layout,
