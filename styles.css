@@ -822,6 +822,16 @@ button {
   line-height: 1.7;
 }
 
+.helper-day-summary {
+  width: min(880px, 100%);
+}
+
+.helper-day-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+}
+
 .date-chip {
   display: grid;
   gap: 4px;

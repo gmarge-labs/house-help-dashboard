@@ -785,6 +785,7 @@ function renderPlannerPage() {
   const plan = getDayPlan(selectedDate);
   const tasks = getAssignmentsForDate(selectedDate);
   const upcoming = getUpcomingDates();
+  const feeSummary = getDayFeeSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -792,7 +793,7 @@ function renderPlannerPage() {
         <div class="section-header">
           <div>
             <h2>Plan this day</h2>
-            <p class="small-note">Build the checklist and the note that appears on the task board.</p>
+            <p class="small-note">Build the checklist, save the day note, and set the hours and pay for this visit.</p>
           </div>
           <span class="pill">${tasks.length} tasks</span>
         </div>
@@ -803,10 +804,40 @@ function renderPlannerPage() {
               <label for="arrival-window">Arrival window</label>
               <input id="arrival-window" name="arrivalWindow" value="${escapeHtml(plan.arrivalWindow)}" placeholder="10:00 AM to 2:00 PM" />
             </div>
+            <div class="field">
+              <label for="fee-hours">Total hours for this day</label>
+              <input
+                id="fee-hours"
+                name="feeHours"
+                type="number"
+                min="0"
+                step="0.25"
+                value="${escapeHtml(String(plan.feeHours || ""))}"
+                placeholder="6"
+              />
+            </div>
+            <div class="field">
+              <label for="hourly-rate">Price per hour</label>
+              <input
+                id="hourly-rate"
+                name="hourlyRate"
+                type="number"
+                min="0"
+                step="0.01"
+                value="${escapeHtml(String(plan.hourlyRate || ""))}"
+                placeholder="25"
+              />
+            </div>
           </div>
           <div class="field" style="margin-top: 14px;">
             <label for="day-note">Daily note</label>
             <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
+          </div>
+          <div class="info-card" style="margin-top: 18px;">
+            <div class="info-line">
+              <strong>Calculated pay for this day</strong>
+              <span>$${feeSummary.total.toFixed(2)}</span>
+            </div>
           </div>
           <div class="actions">
             <button class="btn btn-primary" type="submit">Save visit details</button>
@@ -980,7 +1011,6 @@ function renderSettingsPage() {
   const selectedDate = state.selectedDate || todayString();
   const stats = getDayStats(selectedDate);
   const shareUrl = getShareUrl();
-  const plan = getDayPlan(selectedDate);
   const feeSummary = getDayFeeSummary(selectedDate);
   const weeklyFeeSummary = getFeeRangeSummary(selectedDate, 7);
   const biweeklyFeeSummary = getFeeRangeSummary(selectedDate, 14);
@@ -1050,40 +1080,18 @@ function renderSettingsPage() {
       <section class="panel">
         <div class="section-header">
           <div>
-            <h2>Helper fees</h2>
-            <p class="small-note">For ${formatDate(selectedDate, { weekday: true })}</p>
+            <h2>Payment summary</h2>
+            <p class="small-note">Rollups starting from ${formatDate(selectedDate, { weekday: true })}</p>
           </div>
         </div>
-        <form id="fee-calculator-form">
-          <div class="form-grid">
-            <div class="field">
-              <label for="fee-hours">Hours worked</label>
-              <input
-                id="fee-hours"
-                name="feeHours"
-                type="number"
-                min="0"
-                step="0.25"
-                value="${escapeHtml(String(plan.feeHours || ""))}"
-                placeholder="6"
-              />
-            </div>
-            <div class="field">
-              <label for="hourly-rate">Price per hour</label>
-              <input
-                id="hourly-rate"
-                name="hourlyRate"
-                type="number"
-                min="0"
-                step="0.01"
-                value="${escapeHtml(String(plan.hourlyRate || ""))}"
-                placeholder="25"
-              />
-            </div>
+        <div class="info-card">
+          <div class="info-line">
+            <strong>Selected day hours</strong>
+            <span>${feeSummary.hours ? `${feeSummary.hours} hrs` : "Not set"}</span>
           </div>
           <div class="info-card" style="margin-top: 18px;">
             <div class="info-line">
-              <strong>Calculated total</strong>
+              <strong>Selected day total</strong>
               <span>$${feeSummary.total.toFixed(2)}</span>
             </div>
             <div class="info-line">
@@ -1095,10 +1103,7 @@ function renderSettingsPage() {
               <span>$${biweeklyFeeSummary.total.toFixed(2)}</span>
             </div>
           </div>
-          <div class="actions">
-            <button class="btn btn-primary" type="submit">Save fee details</button>
-          </div>
-        </form>
+        </div>
       </section>
 
       <section class="panel">
@@ -1185,6 +1190,8 @@ function bindFamilyApp() {
     const plan = getDayPlan(date);
     plan.arrivalWindow = String(form.get("arrivalWindow") || "").trim();
     plan.note = String(form.get("note") || "").trim();
+    plan.feeHours = String(form.get("feeHours") || "").trim();
+    plan.hourlyRate = String(form.get("hourlyRate") || "").trim();
     setFlash(`Saved visit details for ${formatDate(date, { weekday: true })}.`);
     render();
   });
@@ -1212,6 +1219,8 @@ function bindFamilyApp() {
     getHousehold().assignments[targetDate] = {
       note: sourcePlan.note,
       arrivalWindow: sourcePlan.arrivalWindow,
+      feeHours: sourcePlan.feeHours || "",
+      hourlyRate: sourcePlan.hourlyRate || "",
       tasks: copiedTasks,
     };
     setFlash(`Copied the plan from ${formatDate(sourceDate, { weekday: true })} to ${formatDate(targetDate, { weekday: true })}.`);
@@ -1376,19 +1385,6 @@ function bindFamilyApp() {
     render();
   });
 
-  document.getElementById("fee-calculator-form")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const date = state.selectedDate || todayString();
-    const plan = getDayPlan(date);
-
-    plan.feeHours = String(form.get("feeHours") || "").trim();
-    plan.hourlyRate = String(form.get("hourlyRate") || "").trim();
-
-    const feeSummary = getDayFeeSummary(date);
-    setFlash(`Fee details saved. Estimated total: $${feeSummary.total.toFixed(2)}.`);
-    render();
-  });
 }
 
 function renderHelperDashboard() {
@@ -1397,6 +1393,7 @@ function renderHelperDashboard() {
   const { tasks, completed, remaining, progress } = getDayStats(selectedDate);
   const nextTask = tasks.find((task) => task.status !== "done");
   const helperDates = getHelperWindowDates();
+  const feeSummary = getDayFeeSummary(selectedDate);
 
   return `
     <main class="shell">
@@ -1485,6 +1482,22 @@ function renderHelperDashboard() {
                     `
                 }
               </section>
+            </section>
+
+            <section class="panel notes-footer helper-day-summary">
+              <div class="section-header notes-footer-header">
+                <h3>Day summary</h3>
+              </div>
+              <div class="helper-day-summary-grid">
+                <div class="info-line">
+                  <strong>Total hours</strong>
+                  <span>${feeSummary.hours ? `${feeSummary.hours} hrs` : "Not set"}</span>
+                </div>
+                <div class="info-line">
+                  <strong>Pay for this day</strong>
+                  <span>$${feeSummary.total.toFixed(2)}</span>
+                </div>
+              </div>
             </section>
 
             <footer class="helper-footer">
