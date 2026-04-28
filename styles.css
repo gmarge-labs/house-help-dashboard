@@ -893,6 +893,10 @@ button {
   gap: 14px 24px;
 }
 
+.helper-session-actions {
+  justify-content: center;
+}
+
 .payment-history {
   display: grid;
   gap: 14px;

@@ -131,6 +131,8 @@ function normalizeAssignments(assignments) {
         feeHours: "",
         hourlyRate: "",
         paymentStatus: "unpaid",
+        workStartAt: "",
+        workEndAt: "",
         tasks: value.map(normalizeTask).sort((a, b) => a.order - b.order),
       };
       return;
@@ -143,6 +145,8 @@ function normalizeAssignments(assignments) {
       feeHours: value?.feeHours || "",
       hourlyRate: value?.hourlyRate || "",
       paymentStatus: value?.paymentStatus === "paid" ? "paid" : "unpaid",
+      workStartAt: value?.workStartAt || "",
+      workEndAt: value?.workEndAt || "",
       tasks: Array.isArray(value?.tasks)
         ? value.tasks.map(normalizeTask).sort((a, b) => a.order - b.order)
         : [],
@@ -357,6 +361,16 @@ function formatShortDay(dateString) {
   });
 }
 
+function formatDateTime(dateTimeString) {
+  if (!dateTimeString) return "";
+  return new Date(dateTimeString).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function addDays(dateString, offset) {
   const date = new Date(`${dateString}T12:00:00`);
   date.setDate(date.getDate() + offset);
@@ -396,6 +410,8 @@ function ensureDayPlan(date) {
       feeHours: "",
       hourlyRate: "",
       paymentStatus: "unpaid",
+      workStartAt: "",
+      workEndAt: "",
       tasks: [],
     };
   }
@@ -429,6 +445,18 @@ function getDayFeeSummary(date) {
     hours,
     rate,
     total: hours * rate,
+  };
+}
+
+function getDayWorkSessionSummary(date) {
+  const plan = getDayPlan(date);
+  const start = plan.workStartAt ? new Date(plan.workStartAt) : null;
+  const end = plan.workEndAt ? new Date(plan.workEndAt) : null;
+  const spentHours = start && end ? Math.max(0, (end - start) / (1000 * 60 * 60)) : 0;
+  return {
+    start,
+    end,
+    spentHours,
   };
 }
 
@@ -977,6 +1005,7 @@ function renderPlannerPage() {
   const recurringTemplates = getRecurringTemplatesForDate(selectedDate);
   const monthDays = getMonthMatrix(selectedDate);
   const workload = getDayWorkloadSummary(selectedDate);
+  const session = getDayWorkSessionSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -1040,6 +1069,18 @@ function renderPlannerPage() {
             <div class="info-line">
               <strong>Daily limit</strong>
               <span>${workload.limitHours ? formatHours(workload.limitHours) : "Not set"}</span>
+            </div>
+            <div class="info-line">
+              <strong>Work started</strong>
+              <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
+            </div>
+            <div class="info-line">
+              <strong>Work finished</strong>
+              <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
+            </div>
+            <div class="info-line">
+              <strong>Hours spent</strong>
+              <span>${session.end ? formatHours(session.spentHours) : "In progress"}</span>
             </div>
           </div>
           ${
@@ -1429,6 +1470,7 @@ function renderSettingsPage() {
   const paymentHistory = getPaymentHistory();
   const paymentRollup = getPaymentRollup(paymentHistory);
   const workload = getDayWorkloadSummary(selectedDate);
+  const session = getDayWorkSessionSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -1528,6 +1570,10 @@ function renderSettingsPage() {
           <div class="info-line">
             <strong>Planned task time</strong>
             <span>${formatHours(workload.taskHours)}</span>
+          </div>
+          <div class="info-line">
+            <strong>Hours spent</strong>
+            <span>${session.end ? formatHours(session.spentHours) : session.start ? "In progress" : "Not tracked"}</span>
           </div>
           <div class="info-card" style="margin-top: 18px;">
             <div class="info-line">
@@ -2062,6 +2108,7 @@ function renderHelperDashboard() {
   const helperDates = getHelperWindowDates();
   const feeSummary = getDayFeeSummary(selectedDate);
   const workload = getDayWorkloadSummary(selectedDate);
+  const session = getDayWorkSessionSummary(selectedDate);
   const completionLock = getHousehold().settings?.caretakerCompletionLock;
 
   return `
@@ -2181,6 +2228,27 @@ function renderHelperDashboard() {
                   <strong>Daily fit</strong>
                   <span>${workload.isOverLimit ? `Over by ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
                 </div>
+                <div class="info-line">
+                  <strong>Started</strong>
+                  <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
+                </div>
+                <div class="info-line">
+                  <strong>Finished</strong>
+                  <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
+                </div>
+                <div class="info-line">
+                  <strong>Hours spent</strong>
+                  <span>${session.end ? formatHours(session.spentHours) : session.start ? "In progress" : "Not tracked"}</span>
+                </div>
+              </div>
+              <div class="actions helper-session-actions">
+                ${
+                  !session.start
+                    ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
+                    : !session.end
+                      ? `<button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>`
+                      : ""
+                }
               </div>
             </section>
 
@@ -2243,6 +2311,29 @@ function bindHelperDashboard() {
       clearFlash();
       render();
     });
+  });
+
+  document.querySelector("[data-start-work]")?.addEventListener("click", () => {
+    const date = state.helperDate || todayString();
+    const plan = getDayPlan(date);
+    plan.workStartAt = new Date().toISOString();
+    plan.workEndAt = "";
+    setFlash("Work session started.");
+    render();
+  });
+
+  document.querySelector("[data-finish-work]")?.addEventListener("click", () => {
+    const date = state.helperDate || todayString();
+    const plan = getDayPlan(date);
+    if (!plan.workStartAt) {
+      setFlash("Start work first.");
+      render();
+      return;
+    }
+    plan.workEndAt = new Date().toISOString();
+    const session = getDayWorkSessionSummary(date);
+    setFlash(`Work session finished. Total time: ${formatHours(session.spentHours)}.`);
+    render();
   });
 }
 
