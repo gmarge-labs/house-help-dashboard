@@ -2185,6 +2185,42 @@ function renderHelperDashboard() {
               </div>
             </div>
 
+            <section class="panel notes-footer helper-day-summary helper-day-summary-top">
+              <div class="helper-day-summary-strip">
+                <div class="summary-chip">
+                  <strong>Plan</strong>
+                  <span>${formatHours(workload.taskHours)} / ${feeSummary.hours ? formatHours(feeSummary.hours) : "No limit"}</span>
+                </div>
+                <div class="summary-chip">
+                  <strong>Pay</strong>
+                  <span>$${feeSummary.total.toFixed(2)}</span>
+                </div>
+                <div class="summary-chip">
+                  <strong>Timer</strong>
+                  <span>${formatElapsedTime(session.totalMs)}</span>
+                </div>
+                <div class="summary-chip ${workload.isOverLimit ? "summary-chip-warn" : ""}">
+                  <strong>Fit</strong>
+                  <span>${workload.isOverLimit ? `Over ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
+                </div>
+              </div>
+              <div class="actions helper-session-actions">
+                ${
+                  session.timerStatus === "idle" || session.timerStatus === "finished"
+                    ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
+                    : session.timerStatus === "running"
+                      ? `
+                          <button class="btn btn-secondary btn-sm" data-pause-work type="button">Pause</button>
+                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                        `
+                      : `
+                          <button class="btn btn-secondary btn-sm" data-resume-work type="button">Resume</button>
+                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                        `
+                }
+              </div>
+            </section>
+
             <section class="dashboard-content">
               <section class="task-board helper-task-board">
                 <div class="task-board-header">
@@ -2241,42 +2277,6 @@ function renderHelperDashboard() {
                     `
                 }
               </section>
-            </section>
-
-            <section class="panel notes-footer helper-day-summary">
-              <div class="helper-day-summary-strip">
-                <div class="summary-chip">
-                  <strong>Plan</strong>
-                  <span>${formatHours(workload.taskHours)} / ${feeSummary.hours ? formatHours(feeSummary.hours) : "No limit"}</span>
-                </div>
-                <div class="summary-chip">
-                  <strong>Pay</strong>
-                  <span>$${feeSummary.total.toFixed(2)}</span>
-                </div>
-                <div class="summary-chip">
-                  <strong>Timer</strong>
-                  <span>${formatElapsedTime(session.totalMs)}</span>
-                </div>
-                <div class="summary-chip ${workload.isOverLimit ? "summary-chip-warn" : ""}">
-                  <strong>Fit</strong>
-                  <span>${workload.isOverLimit ? `Over ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
-                </div>
-              </div>
-              <div class="actions helper-session-actions">
-                ${
-                  session.timerStatus === "idle" || session.timerStatus === "finished"
-                    ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
-                    : session.timerStatus === "running"
-                      ? `
-                          <button class="btn btn-secondary btn-sm" data-pause-work type="button">Pause</button>
-                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
-                        `
-                      : `
-                          <button class="btn btn-secondary btn-sm" data-resume-work type="button">Resume</button>
-                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
-                        `
-                }
-              </div>
             </section>
 
             <footer class="helper-footer">

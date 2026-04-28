@@ -884,34 +884,38 @@ button {
 }
 
 .helper-day-summary {
-  width: min(880px, 100%);
-  margin-top: 14px;
+  width: min(760px, 100%);
+  margin-top: 6px;
 }
 
 .helper-day-summary-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
+}
+
+.helper-day-summary-top {
+  padding: 10px 14px;
 }
 
 .summary-chip {
   display: grid;
   gap: 2px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(33, 49, 61, 0.08);
 }
 
 .summary-chip strong {
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--accent-dark);
 }
 
 .summary-chip span {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--ink);
 }
@@ -923,7 +927,7 @@ button {
 
 .helper-session-actions {
   justify-content: center;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .payment-history {
