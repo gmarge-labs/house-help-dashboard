@@ -872,7 +872,7 @@ button {
 }
 
 .notes-footer {
-  padding: 22px 24px;
+  padding: 14px 18px;
   max-width: 880px;
   margin-inline: auto;
 }
@@ -890,14 +890,14 @@ button {
 .helper-day-summary-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .summary-chip {
   display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 16px;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(33, 49, 61, 0.08);
 }
@@ -910,7 +910,7 @@ button {
 }
 
 .summary-chip span {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--ink);
 }
@@ -922,6 +922,7 @@ button {
 
 .helper-session-actions {
   justify-content: center;
+  margin-top: 12px;
 }
 
 .payment-history {
