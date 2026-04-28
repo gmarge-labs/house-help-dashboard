@@ -2,6 +2,7 @@ const STORAGE_KEY = "house_help_dashboard_state_v3";
 
 let state = loadState();
 let isBootstrapping = true;
+let helperTimerRenderHandle = null;
 
 const cloudState = {
   enabled: false,
@@ -133,6 +134,9 @@ function normalizeAssignments(assignments) {
         paymentStatus: "unpaid",
         workStartAt: "",
         workEndAt: "",
+        timerStatus: "idle",
+        timerAccumulatedMs: 0,
+        timerLastStartedAt: "",
         tasks: value.map(normalizeTask).sort((a, b) => a.order - b.order),
       };
       return;
@@ -147,6 +151,9 @@ function normalizeAssignments(assignments) {
       paymentStatus: value?.paymentStatus === "paid" ? "paid" : "unpaid",
       workStartAt: value?.workStartAt || "",
       workEndAt: value?.workEndAt || "",
+      timerStatus: value?.timerStatus || "idle",
+      timerAccumulatedMs: Number(value?.timerAccumulatedMs) || 0,
+      timerLastStartedAt: value?.timerLastStartedAt || "",
       tasks: Array.isArray(value?.tasks)
         ? value.tasks.map(normalizeTask).sort((a, b) => a.order - b.order)
         : [],
@@ -412,6 +419,9 @@ function ensureDayPlan(date) {
       paymentStatus: "unpaid",
       workStartAt: "",
       workEndAt: "",
+      timerStatus: "idle",
+      timerAccumulatedMs: 0,
+      timerLastStartedAt: "",
       tasks: [],
     };
   }
@@ -452,12 +462,26 @@ function getDayWorkSessionSummary(date) {
   const plan = getDayPlan(date);
   const start = plan.workStartAt ? new Date(plan.workStartAt) : null;
   const end = plan.workEndAt ? new Date(plan.workEndAt) : null;
-  const spentHours = start && end ? Math.max(0, (end - start) / (1000 * 60 * 60)) : 0;
+  const runningMs = plan.timerStatus === "running" && plan.timerLastStartedAt
+    ? Math.max(0, Date.now() - new Date(plan.timerLastStartedAt).getTime())
+    : 0;
+  const totalMs = plan.timerAccumulatedMs + runningMs;
+  const spentHours = totalMs / (1000 * 60 * 60);
   return {
     start,
     end,
+    totalMs,
+    timerStatus: plan.timerStatus || "idle",
     spentHours,
   };
+}
+
+function formatElapsedTime(totalMs) {
+  const totalSeconds = Math.max(0, Math.floor(totalMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
 function getDayWorkloadSummary(date) {
@@ -634,6 +658,10 @@ function getDayStats(date) {
 function render() {
   const app = document.getElementById("app");
   saveState();
+  if (helperTimerRenderHandle) {
+    clearTimeout(helperTimerRenderHandle);
+    helperTimerRenderHandle = null;
+  }
 
   if (isBootstrapping) {
     app.innerHTML = renderLoadingScreen();
@@ -659,6 +687,10 @@ function render() {
     bindFamilyApp();
   } else {
     bindHelperDashboard();
+    const helperDate = state.helperDate || todayString();
+    if (getDayPlan(helperDate).timerStatus === "running") {
+      helperTimerRenderHandle = setTimeout(() => render(), 1000);
+    }
   }
 
   bindWelcomeModal();
@@ -1081,6 +1113,10 @@ function renderPlannerPage() {
             <div class="info-line">
               <strong>Hours spent</strong>
               <span>${session.end ? formatHours(session.spentHours) : "In progress"}</span>
+            </div>
+            <div class="info-line">
+              <strong>Timer</strong>
+              <span>${formatElapsedTime(session.totalMs)}</span>
             </div>
           </div>
           ${
@@ -2240,14 +2276,24 @@ function renderHelperDashboard() {
                   <strong>Hours spent</strong>
                   <span>${session.end ? formatHours(session.spentHours) : session.start ? "In progress" : "Not tracked"}</span>
                 </div>
+                <div class="info-line">
+                  <strong>Timer</strong>
+                  <span>${formatElapsedTime(session.totalMs)}</span>
+                </div>
               </div>
               <div class="actions helper-session-actions">
                 ${
-                  !session.start
+                  session.timerStatus === "idle" || session.timerStatus === "finished"
                     ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
-                    : !session.end
-                      ? `<button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>`
-                      : ""
+                    : session.timerStatus === "running"
+                      ? `
+                          <button class="btn btn-secondary btn-sm" data-pause-work type="button">Pause</button>
+                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                        `
+                      : `
+                          <button class="btn btn-secondary btn-sm" data-resume-work type="button">Resume</button>
+                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                        `
                 }
               </div>
             </section>
@@ -2316,9 +2362,34 @@ function bindHelperDashboard() {
   document.querySelector("[data-start-work]")?.addEventListener("click", () => {
     const date = state.helperDate || todayString();
     const plan = getDayPlan(date);
-    plan.workStartAt = new Date().toISOString();
+    const now = new Date().toISOString();
+    plan.workStartAt = plan.workStartAt || now;
     plan.workEndAt = "";
+    plan.timerAccumulatedMs = 0;
+    plan.timerLastStartedAt = now;
+    plan.timerStatus = "running";
     setFlash("Work session started.");
+    render();
+  });
+
+  document.querySelector("[data-pause-work]")?.addEventListener("click", () => {
+    const date = state.helperDate || todayString();
+    const plan = getDayPlan(date);
+    if (plan.timerStatus !== "running" || !plan.timerLastStartedAt) return;
+    plan.timerAccumulatedMs += Math.max(0, Date.now() - new Date(plan.timerLastStartedAt).getTime());
+    plan.timerLastStartedAt = "";
+    plan.timerStatus = "paused";
+    setFlash("Work timer paused.");
+    render();
+  });
+
+  document.querySelector("[data-resume-work]")?.addEventListener("click", () => {
+    const date = state.helperDate || todayString();
+    const plan = getDayPlan(date);
+    if (plan.timerStatus !== "paused") return;
+    plan.timerLastStartedAt = new Date().toISOString();
+    plan.timerStatus = "running";
+    setFlash("Work timer resumed.");
     render();
   });
 
@@ -2330,6 +2401,11 @@ function bindHelperDashboard() {
       render();
       return;
     }
+    if (plan.timerStatus === "running" && plan.timerLastStartedAt) {
+      plan.timerAccumulatedMs += Math.max(0, Date.now() - new Date(plan.timerLastStartedAt).getTime());
+    }
+    plan.timerLastStartedAt = "";
+    plan.timerStatus = "finished";
     plan.workEndAt = new Date().toISOString();
     const session = getDayWorkSessionSummary(date);
     setFlash(`Work session finished. Total time: ${formatHours(session.spentHours)}.`);
