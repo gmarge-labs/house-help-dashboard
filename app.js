@@ -109,6 +109,8 @@ function normalizeAssignments(assignments) {
       normalized[date] = {
         note: "",
         arrivalWindow: "",
+        feeHours: "",
+        hourlyRate: "",
         tasks: value.map(normalizeTask).sort((a, b) => a.order - b.order),
       };
       return;
@@ -117,6 +119,8 @@ function normalizeAssignments(assignments) {
     normalized[date] = {
       note: value?.note || "",
       arrivalWindow: value?.arrivalWindow || "",
+      feeHours: value?.feeHours || "",
+      hourlyRate: value?.hourlyRate || "",
       tasks: Array.isArray(value?.tasks)
         ? value.tasks.map(normalizeTask).sort((a, b) => a.order - b.order)
         : [],
@@ -334,6 +338,8 @@ function ensureDayPlan(date) {
     household.assignments[date] = {
       note: "",
       arrivalWindow: "",
+      feeHours: "",
+      hourlyRate: "",
       tasks: [],
     };
   }
@@ -346,6 +352,24 @@ function getDayPlan(date) {
 
 function getAssignmentsForDate(date) {
   return [...getDayPlan(date).tasks].sort((a, b) => a.order - b.order);
+}
+
+function parseFeeInput(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return 0;
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function getDayFeeSummary(date) {
+  const plan = getDayPlan(date);
+  const hours = parseFeeInput(plan.feeHours);
+  const rate = parseFeeInput(plan.hourlyRate);
+  return {
+    hours,
+    rate,
+    total: hours * rate,
+  };
 }
 
 function replaceTasksForDate(date, tasks) {
@@ -937,6 +961,8 @@ function renderSettingsPage() {
   const selectedDate = state.selectedDate || todayString();
   const stats = getDayStats(selectedDate);
   const shareUrl = getShareUrl();
+  const plan = getDayPlan(selectedDate);
+  const feeSummary = getDayFeeSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -998,6 +1024,52 @@ function renderSettingsPage() {
             <button class="btn btn-secondary" data-copy-share-link type="button">Copy share link</button>
           </div>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Helper fees</h2>
+            <p class="small-note">For ${formatDate(selectedDate, { weekday: true })}</p>
+          </div>
+        </div>
+        <form id="fee-calculator-form">
+          <div class="form-grid">
+            <div class="field">
+              <label for="fee-hours">Hours worked</label>
+              <input
+                id="fee-hours"
+                name="feeHours"
+                type="number"
+                min="0"
+                step="0.25"
+                value="${escapeHtml(String(plan.feeHours || ""))}"
+                placeholder="6"
+              />
+            </div>
+            <div class="field">
+              <label for="hourly-rate">Price per hour</label>
+              <input
+                id="hourly-rate"
+                name="hourlyRate"
+                type="number"
+                min="0"
+                step="0.01"
+                value="${escapeHtml(String(plan.hourlyRate || ""))}"
+                placeholder="25"
+              />
+            </div>
+          </div>
+          <div class="info-card" style="margin-top: 18px;">
+            <div class="info-line">
+              <strong>Calculated total</strong>
+              <span>$${feeSummary.total.toFixed(2)}</span>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Save fee details</button>
+          </div>
+        </form>
       </section>
 
       <section class="panel">
@@ -1272,6 +1344,20 @@ function bindFamilyApp() {
     getHousehold().familyPin = familyPin;
     getHousehold().helperPin = helperPin;
     setFlash("Planner and caretaker PINs updated.");
+    render();
+  });
+
+  document.getElementById("fee-calculator-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const date = state.selectedDate || todayString();
+    const plan = getDayPlan(date);
+
+    plan.feeHours = String(form.get("feeHours") || "").trim();
+    plan.hourlyRate = String(form.get("hourlyRate") || "").trim();
+
+    const feeSummary = getDayFeeSummary(date);
+    setFlash(`Fee details saved. Estimated total: $${feeSummary.total.toFixed(2)}.`);
     render();
   });
 }
