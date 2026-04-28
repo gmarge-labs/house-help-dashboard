@@ -721,10 +721,10 @@ button {
 
 .helper-select-inline select {
   display: block;
-  height: 58px;
-  min-height: 58px;
-  max-height: 58px;
-  padding: 0 14px;
+  height: 50px;
+  min-height: 50px;
+  max-height: 50px;
+  padding: 0 12px;
   font-size: 0.95rem;
   line-height: 1.2;
   box-sizing: border-box;
@@ -774,9 +774,9 @@ button {
 
 .score-card-compact {
   width: 220px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .score-card-copy {
@@ -795,7 +795,7 @@ button {
 }
 
 .score-card-compact .score-card-copy strong {
-  font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
 }
 
 .score-card-compact .score-card-copy p:last-child {
