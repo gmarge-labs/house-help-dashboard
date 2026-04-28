@@ -109,6 +109,7 @@ function normalizeTask(task, index) {
     title: task.title || "Untitled task",
     area: task.area || "General",
     notes: task.notes || "",
+    estimateHours: task.estimateHours || "",
     status: task.status === "done" ? "done" : "pending",
     source: task.source || "custom",
     order: Number.isFinite(task.order) ? task.order : index + 1,
@@ -166,6 +167,7 @@ function normalizeState(raw) {
             title: template.title || "Untitled template",
             area: template.area || "General",
             notes: template.notes || "",
+            estimateHours: template.estimateHours || "",
             recurrence: {
               ...defaultRecurrence(),
               ...(template.recurrence || {}),
@@ -413,6 +415,10 @@ function parseFeeInput(value) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function formatHours(value) {
+  return `${parseFeeInput(value).toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")} hrs`;
+}
+
 function getDayFeeSummary(date) {
   const plan = getDayPlan(date);
   const hours = parseFeeInput(plan.feeHours);
@@ -422,6 +428,24 @@ function getDayFeeSummary(date) {
     rate,
     total: hours * rate,
   };
+}
+
+function getDayWorkloadSummary(date) {
+  const plan = getDayPlan(date);
+  const taskHours = getAssignmentsForDate(date).reduce((sum, task) => sum + parseFeeInput(task.estimateHours), 0);
+  const limitHours = parseFeeInput(plan.feeHours);
+  return {
+    taskHours,
+    limitHours,
+    overloadHours: Math.max(0, taskHours - limitHours),
+    isOverLimit: limitHours > 0 && taskHours > limitHours,
+  };
+}
+
+function getOverloadMessage(date) {
+  const workload = getDayWorkloadSummary(date);
+  if (!workload.isOverLimit) return "";
+  return ` Planned task time is ${formatHours(workload.taskHours)}, which is over the daily limit of ${formatHours(workload.limitHours)}.`;
 }
 
 function getFeeRangeSummary(startDate, numberOfDays) {
@@ -561,6 +585,7 @@ function createTaskAssignment({ title, area, notes, date, source = "custom" }) {
     title,
     area: area || "General",
     notes: notes || "",
+    estimateHours: "",
     status: "pending",
     source,
     order: current.length + 1,
@@ -924,6 +949,7 @@ function renderPlannerPage() {
   const feeSummary = getDayFeeSummary(selectedDate);
   const recurringTemplates = getRecurringTemplatesForDate(selectedDate);
   const monthDays = getMonthMatrix(selectedDate);
+  const workload = getDayWorkloadSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -943,7 +969,7 @@ function renderPlannerPage() {
               <input id="arrival-window" name="arrivalWindow" value="${escapeHtml(plan.arrivalWindow)}" placeholder="10:00 AM to 2:00 PM" />
             </div>
             <div class="field">
-              <label for="fee-hours">Total hours for this day</label>
+              <label for="fee-hours">Daily work limit</label>
               <input
                 id="fee-hours"
                 name="feeHours"
@@ -980,7 +1006,27 @@ function renderPlannerPage() {
               <strong>Calculated pay for this day</strong>
               <span>$${feeSummary.total.toFixed(2)}</span>
             </div>
+            <div class="info-line">
+              <strong>Planned task time</strong>
+              <span>${formatHours(workload.taskHours)}</span>
+            </div>
+            <div class="info-line">
+              <strong>Daily limit</strong>
+              <span>${workload.limitHours ? formatHours(workload.limitHours) : "Not set"}</span>
+            </div>
           </div>
+          ${
+            workload.isOverLimit
+              ? `
+                <div class="info-card workload-warning" style="margin-top: 18px;">
+                  <div class="info-line">
+                    <strong>Time warning</strong>
+                    <span>Tasks exceed the day by ${formatHours(workload.overloadHours)}</span>
+                  </div>
+                </div>
+              `
+              : ""
+          }
           <div class="actions">
             <button class="btn btn-primary" type="submit">Save visit details</button>
           </div>
@@ -1008,6 +1054,7 @@ function renderPlannerPage() {
                           <div>
                             <h4>${escapeHtml(task.title)}</h4>
                             <div class="small-note">${escapeHtml(task.notes || "No note added yet.")}</div>
+                            <div class="small-note">${task.estimateHours ? formatHours(task.estimateHours) : "No time estimate yet."}</div>
                           </div>
                           <span class="pill">${escapeHtml(task.area)}</span>
                         </header>
@@ -1023,6 +1070,10 @@ function renderPlannerPage() {
                                   <div class="field">
                                     <label>Area</label>
                                     <input name="area" value="${escapeHtml(task.area)}" />
+                                  </div>
+                                  <div class="field">
+                                    <label>Estimated hours</label>
+                                    <input name="estimateHours" type="number" min="0" step="0.25" value="${escapeHtml(String(task.estimateHours || ""))}" />
                                   </div>
                                 </div>
                                 <div class="field" style="margin-top: 14px;">
@@ -1077,6 +1128,7 @@ function renderPlannerPage() {
                           <div>
                             <h4>${escapeHtml(template.title)}</h4>
                             <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
+                            <div class="small-note">${template.estimateHours ? formatHours(template.estimateHours) : "No time estimate yet."}</div>
                           </div>
                           <span class="pill">${escapeHtml(template.area || "General")}</span>
                         </header>
@@ -1202,6 +1254,10 @@ function renderTemplatesPage() {
               <input id="template-area" name="area" placeholder="Bedrooms" />
             </div>
             <div class="field">
+              <label for="template-estimate-hours">Estimated hours</label>
+              <input id="template-estimate-hours" name="estimateHours" type="number" min="0" step="0.25" placeholder="1.5" />
+            </div>
+            <div class="field">
               <label for="template-recurrence">Recurrence</label>
               <select id="template-recurrence" name="recurrenceCadence">
                 <option value="manual">Manual only</option>
@@ -1257,6 +1313,7 @@ function renderTemplatesPage() {
                     <div>
                       <h4>${escapeHtml(template.title)}</h4>
                       <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
+                      <div class="small-note">${template.estimateHours ? formatHours(template.estimateHours) : "No time estimate yet."}</div>
                       <div class="small-note">${escapeHtml(template.notes || "No note added yet.")}</div>
                     </div>
                     <span class="pill">${escapeHtml(template.area || "General")}</span>
@@ -1273,6 +1330,10 @@ function renderTemplatesPage() {
                             <div class="field">
                               <label>Area</label>
                               <input name="area" value="${escapeHtml(template.area || "")}" />
+                            </div>
+                            <div class="field">
+                              <label>Estimated hours</label>
+                              <input name="estimateHours" type="number" min="0" step="0.25" value="${escapeHtml(String(template.estimateHours || ""))}" />
                             </div>
                             <div class="field">
                               <label>Recurrence</label>
@@ -1340,6 +1401,7 @@ function renderSettingsPage() {
   const biweeklyFeeSummary = getFeeRangeSummary(selectedDate, 14);
   const paymentHistory = getPaymentHistory();
   const paymentRollup = getPaymentRollup(paymentHistory);
+  const workload = getDayWorkloadSummary(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -1435,6 +1497,10 @@ function renderSettingsPage() {
           <div class="info-line">
             <strong>Selected day hours</strong>
             <span>${feeSummary.hours ? `${feeSummary.hours} hrs` : "Not set"}</span>
+          </div>
+          <div class="info-line">
+            <strong>Planned task time</strong>
+            <span>${formatHours(workload.taskHours)}</span>
           </div>
           <div class="info-card" style="margin-top: 18px;">
             <div class="info-line">
@@ -1608,12 +1674,13 @@ function bindFamilyApp() {
                 title: String(form.get("title") || "").trim() || task.title,
                 area: String(form.get("area") || "").trim() || "General",
                 notes: String(form.get("notes") || "").trim(),
+                estimateHours: String(form.get("estimateHours") || "").trim(),
               }
             : task
         )
       );
       state.editingTaskId = null;
-      setFlash("Task updated.");
+      setFlash(`Task updated.${getOverloadMessage(date)}`);
       render();
     });
   });
@@ -1639,7 +1706,7 @@ function bindFamilyApp() {
     plan.privateNote = String(form.get("privateNote") || "").trim();
     plan.feeHours = String(form.get("feeHours") || "").trim();
     plan.hourlyRate = String(form.get("hourlyRate") || "").trim();
-    setFlash(`Saved visit details for ${formatDate(date, { weekday: true })}.`);
+    setFlash(`Saved visit details for ${formatDate(date, { weekday: true })}.${getOverloadMessage(date)}`);
     render();
   });
 
@@ -1687,6 +1754,7 @@ function bindFamilyApp() {
       title,
       area: String(form.get("area") || "").trim(),
       notes: String(form.get("notes") || "").trim(),
+      estimateHours: String(form.get("estimateHours") || "").trim(),
       recurrence: {
         cadence: String(form.get("recurrenceCadence") || "manual"),
         weekday: String(form.get("recurrenceWeekday") || "").trim(),
@@ -1725,6 +1793,7 @@ function bindFamilyApp() {
               title: String(form.get("title") || "").trim() || template.title,
               area: String(form.get("area") || "").trim(),
               notes: String(form.get("notes") || "").trim(),
+              estimateHours: String(form.get("estimateHours") || "").trim(),
               recurrence: {
                 cadence: String(form.get("recurrenceCadence") || "manual"),
                 weekday: String(form.get("recurrenceWeekday") || "").trim(),
@@ -1752,9 +1821,10 @@ function bindFamilyApp() {
         date,
         source: "template",
       });
+      task.estimateHours = String(template.estimateHours || "").trim();
 
       replaceTasksForDate(date, [...getAssignmentsForDate(date), task]);
-      setFlash(`Assigned "${template.title}" to ${formatDate(date, { weekday: true })}.`);
+      setFlash(`Assigned "${template.title}" to ${formatDate(date, { weekday: true })}.${getOverloadMessage(date)}`);
       render();
     });
   });
@@ -1768,18 +1838,20 @@ function bindFamilyApp() {
       return;
     }
 
-    const nextTasks = recurringTemplates.map((template) =>
-      createTaskAssignment({
-        title: template.title,
-        area: template.area,
-        notes: template.notes,
-        date,
-        source: "template",
+    const nextTasks = recurringTemplates.map((template) => ({
+        ...createTaskAssignment({
+          title: template.title,
+          area: template.area,
+          notes: template.notes,
+          date,
+          source: "template",
+        }),
+        estimateHours: String(template.estimateHours || "").trim(),
       })
     );
 
     replaceTasksForDate(date, [...getAssignmentsForDate(date), ...nextTasks]);
-    setFlash(`Added ${nextTasks.length} recurring ${nextTasks.length === 1 ? "task" : "tasks"} to ${formatDate(date, { weekday: true })}.`);
+    setFlash(`Added ${nextTasks.length} recurring ${nextTasks.length === 1 ? "task" : "tasks"} to ${formatDate(date, { weekday: true })}.${getOverloadMessage(date)}`);
     render();
   });
 
@@ -1962,6 +2034,7 @@ function renderHelperDashboard() {
   const nextTask = tasks.find((task) => task.status !== "done");
   const helperDates = getHelperWindowDates();
   const feeSummary = getDayFeeSummary(selectedDate);
+  const workload = getDayWorkloadSummary(selectedDate);
   const completionLock = getHousehold().settings?.caretakerCompletionLock;
 
   return `
@@ -2031,6 +2104,7 @@ function renderHelperDashboard() {
                                     <span class="task-row-copy">
                                       <strong>${escapeHtml(task.title)}</strong>
                                       <span>${escapeHtml(task.area)}</span>
+                                      <small>${task.estimateHours ? formatHours(task.estimateHours) : "No time estimate set"}</small>
                                     </span>
                                   </label>
                                   ${
@@ -2066,12 +2140,20 @@ function renderHelperDashboard() {
               </div>
               <div class="helper-day-summary-grid">
                 <div class="info-line">
+                  <strong>Planned task time</strong>
+                  <span>${formatHours(workload.taskHours)}</span>
+                </div>
+                <div class="info-line">
                   <strong>Total hours</strong>
-                  <span>${feeSummary.hours ? `${feeSummary.hours} hrs` : "Not set"}</span>
+                  <span>${feeSummary.hours ? formatHours(feeSummary.hours) : "Not set"}</span>
                 </div>
                 <div class="info-line">
                   <strong>Pay for this day</strong>
                   <span>$${feeSummary.total.toFixed(2)}</span>
+                </div>
+                <div class="info-line">
+                  <strong>Daily fit</strong>
+                  <span>${workload.isOverLimit ? `Over by ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
                 </div>
               </div>
             </section>
