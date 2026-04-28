@@ -87,6 +87,20 @@ function defaultState() {
   };
 }
 
+function defaultHouseholdSettings() {
+  return {
+    caretakerCompletionLock: true,
+  };
+}
+
+function defaultRecurrence() {
+  return {
+    cadence: "manual",
+    weekday: "",
+    anchorDate: "",
+  };
+}
+
 function normalizeTask(task, index) {
   return {
     id: task.id || uid(),
@@ -108,9 +122,11 @@ function normalizeAssignments(assignments) {
     if (Array.isArray(value)) {
       normalized[date] = {
         note: "",
+        privateNote: "",
         arrivalWindow: "",
         feeHours: "",
         hourlyRate: "",
+        paymentStatus: "unpaid",
         tasks: value.map(normalizeTask).sort((a, b) => a.order - b.order),
       };
       return;
@@ -118,9 +134,11 @@ function normalizeAssignments(assignments) {
 
     normalized[date] = {
       note: value?.note || "",
+      privateNote: value?.privateNote || "",
       arrivalWindow: value?.arrivalWindow || "",
       feeHours: value?.feeHours || "",
       hourlyRate: value?.hourlyRate || "",
+      paymentStatus: value?.paymentStatus === "paid" ? "paid" : "unpaid",
       tasks: Array.isArray(value?.tasks)
         ? value.tasks.map(normalizeTask).sort((a, b) => a.order - b.order)
         : [],
@@ -139,12 +157,17 @@ function normalizeState(raw) {
       helperName: raw.household.helperName || "",
       familyPin: raw.household.familyPin || "",
       helperPin: raw.household.helperPin || "",
+      settings: { ...defaultHouseholdSettings(), ...(raw.household.settings || {}) },
       templates: Array.isArray(raw.household.templates)
         ? raw.household.templates.map((template) => ({
             id: template.id || uid(),
             title: template.title || "Untitled template",
             area: template.area || "General",
             notes: template.notes || "",
+            recurrence: {
+              ...defaultRecurrence(),
+              ...(template.recurrence || {}),
+            },
           }))
         : [],
       assignments: normalizeAssignments(raw.household.assignments),
@@ -337,9 +360,11 @@ function ensureDayPlan(date) {
   if (!household.assignments[date]) {
     household.assignments[date] = {
       note: "",
+      privateNote: "",
       arrivalWindow: "",
       feeHours: "",
       hourlyRate: "",
+      paymentStatus: "unpaid",
       tasks: [],
     };
   }
@@ -391,6 +416,89 @@ function getFeeRangeSummary(startDate, numberOfDays) {
   );
 }
 
+function getWeekdayValue(dateString) {
+  return new Date(`${dateString}T12:00:00`).getDay();
+}
+
+function matchesRecurrence(template, date) {
+  const recurrence = {
+    ...defaultRecurrence(),
+    ...(template?.recurrence || {}),
+  };
+
+  if (recurrence.cadence === "manual") return false;
+  if (recurrence.cadence === "every_visit") return true;
+
+  const weekday = recurrence.weekday === "" ? null : Number(recurrence.weekday);
+  if (weekday !== null && getWeekdayValue(date) !== weekday) return false;
+
+  if (recurrence.cadence === "weekly") return true;
+
+  if (recurrence.cadence === "biweekly") {
+    const anchorDate = recurrence.anchorDate || date;
+    const current = new Date(`${date}T12:00:00`);
+    const anchor = new Date(`${anchorDate}T12:00:00`);
+    const diffDays = Math.round((current - anchor) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays % 14 === 0;
+  }
+
+  return false;
+}
+
+function getRecurringTemplatesForDate(date) {
+  const household = getHousehold();
+  const assignedTitles = new Set(getAssignmentsForDate(date).map((task) => task.title.toLowerCase()));
+  return household.templates.filter((template) => {
+    if (!matchesRecurrence(template, date)) return false;
+    return !assignedTitles.has(template.title.toLowerCase());
+  });
+}
+
+function formatRecurrenceLabel(recurrence) {
+  const safe = { ...defaultRecurrence(), ...(recurrence || {}) };
+  if (safe.cadence === "every_visit") return "Every visit";
+  if (safe.cadence === "weekly") {
+    const day = safe.weekday === "" ? "selected day" : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][Number(safe.weekday)];
+    return `Weekly on ${day}`;
+  }
+  if (safe.cadence === "biweekly") {
+    const day = safe.weekday === "" ? "selected day" : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][Number(safe.weekday)];
+    return `Every 2 weeks on ${day}`;
+  }
+  return "Manual only";
+}
+
+function getPaymentHistory() {
+  return Object.entries(getHousehold().assignments)
+    .map(([date, plan]) => {
+      const fee = getDayFeeSummary(date);
+      return {
+        date,
+        hours: fee.hours,
+        rate: fee.rate,
+        total: fee.total,
+        paymentStatus: plan.paymentStatus === "paid" ? "paid" : "unpaid",
+      };
+    })
+    .filter((entry) => entry.hours > 0 || entry.total > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function getPaymentRollup(entries) {
+  return entries.reduce(
+    (summary, entry) => {
+      summary.total += entry.total;
+      if (entry.paymentStatus === "paid") {
+        summary.paid += entry.total;
+      } else {
+        summary.outstanding += entry.total;
+      }
+      return summary;
+    },
+    { total: 0, paid: 0, outstanding: 0 }
+  );
+}
+
 function replaceTasksForDate(date, tasks) {
   const plan = ensureDayPlan(date);
   plan.tasks = tasks.map((task, index) => ({
@@ -404,7 +512,7 @@ function getUpcomingDates() {
   return Object.keys(household.assignments)
     .filter((date) => {
       const plan = household.assignments[date];
-      return plan.tasks.length > 0 || plan.note || plan.arrivalWindow;
+      return plan.tasks.length > 0 || plan.note || plan.privateNote || plan.arrivalWindow;
     })
     .sort()
     .slice(0, 8);
@@ -535,6 +643,7 @@ function bindSetup() {
         helperName,
         familyPin,
         helperPin,
+        settings: defaultHouseholdSettings(),
         templates: createSampleTemplates(),
         assignments: {},
       },
@@ -786,6 +895,7 @@ function renderPlannerPage() {
   const tasks = getAssignmentsForDate(selectedDate);
   const upcoming = getUpcomingDates();
   const feeSummary = getDayFeeSummary(selectedDate);
+  const recurringTemplates = getRecurringTemplatesForDate(selectedDate);
 
   return `
     <section class="planner-layout">
@@ -832,6 +942,10 @@ function renderPlannerPage() {
           <div class="field" style="margin-top: 14px;">
             <label for="day-note">Daily note</label>
             <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
+          </div>
+          <div class="field" style="margin-top: 14px;">
+            <label for="private-note">Private planner note</label>
+            <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
           </div>
           <div class="info-card" style="margin-top: 18px;">
             <div class="info-line">
@@ -886,6 +1000,50 @@ function renderPlannerPage() {
               `
           }
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Recurring suggestions</h2>
+            <p class="small-note">Reusable tasks that match this date and are not yet on the list.</p>
+          </div>
+          <span class="pill">${recurringTemplates.length} matches</span>
+        </div>
+        ${
+          recurringTemplates.length
+            ? `
+              <div class="template-list">
+                ${recurringTemplates
+                  .map(
+                    (template) => `
+                      <article class="task-card">
+                        <header>
+                          <div>
+                            <h4>${escapeHtml(template.title)}</h4>
+                            <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
+                          </div>
+                          <span class="pill">${escapeHtml(template.area || "General")}</span>
+                        </header>
+                        <div class="template-actions" style="margin-top: 14px;">
+                          <button class="btn btn-secondary" data-assign-template="${template.id}" type="button">Add to this day</button>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" data-assign-all-recurring type="button">Add all recurring matches</button>
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No recurring tasks to add</h3>
+                <p class="muted">Templates with every-visit, weekly, or biweekly schedules will appear here when they match this date.</p>
+              </div>
+            `
+        }
       </section>
 
       <section class="panel">
@@ -961,6 +1119,34 @@ function renderTemplatesPage() {
               <label for="template-area">Area</label>
               <input id="template-area" name="area" placeholder="Bedrooms" />
             </div>
+            <div class="field">
+              <label for="template-recurrence">Recurrence</label>
+              <select id="template-recurrence" name="recurrenceCadence">
+                <option value="manual">Manual only</option>
+                <option value="every_visit">Every visit</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Every 2 weeks</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="template-weekday">Weekday</label>
+              <select id="template-weekday" name="recurrenceWeekday">
+                <option value="">Use selected day</option>
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field">
+              <label for="template-anchor-date">Biweekly start date</label>
+              <input id="template-anchor-date" name="recurrenceAnchorDate" type="date" value="${selectedDate}" />
+            </div>
           </div>
           <div class="field" style="margin-top: 14px;">
             <label for="template-notes">Notes</label>
@@ -988,6 +1174,7 @@ function renderTemplatesPage() {
                   <header>
                     <div>
                       <h4>${escapeHtml(template.title)}</h4>
+                      <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
                       <div class="small-note">${escapeHtml(template.notes || "No note added yet.")}</div>
                     </div>
                     <span class="pill">${escapeHtml(template.area || "General")}</span>
@@ -1014,6 +1201,8 @@ function renderSettingsPage() {
   const feeSummary = getDayFeeSummary(selectedDate);
   const weeklyFeeSummary = getFeeRangeSummary(selectedDate, 7);
   const biweeklyFeeSummary = getFeeRangeSummary(selectedDate, 14);
+  const paymentHistory = getPaymentHistory();
+  const paymentRollup = getPaymentRollup(paymentHistory);
 
   return `
     <section class="planner-layout">
@@ -1064,6 +1253,27 @@ function renderSettingsPage() {
 
       <section class="panel">
         <div class="section-header">
+          <h2>Caretaker controls</h2>
+        </div>
+        <form id="caretaker-controls-form">
+          <label class="toggle-row">
+            <input
+              id="caretaker-completion-lock"
+              name="caretakerCompletionLock"
+              type="checkbox"
+              ${household.settings?.caretakerCompletionLock ? "checked" : ""}
+            />
+            <span>Lock completed tasks in caretaker view</span>
+          </label>
+          <p class="small-note">When this is on, the caretaker can mark a task done but cannot uncheck it later without planner access.</p>
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Save caretaker controls</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
           <h2>Shared access</h2>
         </div>
         <div class="info-card">
@@ -1104,6 +1314,61 @@ function renderSettingsPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Payment history</h2>
+            <p class="small-note">Track daily pay and mark visits as paid when they are settled.</p>
+          </div>
+          <span class="pill">${paymentHistory.length} entries</span>
+        </div>
+        <div class="info-card">
+          <div class="info-line">
+            <strong>Total tracked</strong>
+            <span>$${paymentRollup.total.toFixed(2)}</span>
+          </div>
+          <div class="info-line">
+            <strong>Paid</strong>
+            <span>$${paymentRollup.paid.toFixed(2)}</span>
+          </div>
+          <div class="info-line">
+            <strong>Outstanding</strong>
+            <span>$${paymentRollup.outstanding.toFixed(2)}</span>
+          </div>
+        </div>
+        ${
+          paymentHistory.length
+            ? `
+              <div class="payment-history">
+                ${paymentHistory
+                  .map(
+                    (entry) => `
+                      <article class="payment-row">
+                        <div>
+                          <strong>${formatDate(entry.date, { weekday: true })}</strong>
+                          <div class="small-note">${entry.hours} hrs at $${entry.rate.toFixed(2)}/hr</div>
+                        </div>
+                        <div class="payment-row-side">
+                          <span class="pill ${entry.paymentStatus === "paid" ? "success" : "warm"}">$${entry.total.toFixed(2)}</span>
+                          <button class="btn btn-secondary btn-sm" data-toggle-payment-status="${entry.date}" type="button">
+                            Mark as ${entry.paymentStatus === "paid" ? "unpaid" : "paid"}
+                          </button>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            `
+            : `
+              <div class="empty-state">
+                <h3>No payment history yet</h3>
+                <p class="muted">As soon as you save hours and rate on a day, it will appear here.</p>
+              </div>
+            `
+        }
       </section>
 
       <section class="panel">
@@ -1190,6 +1455,7 @@ function bindFamilyApp() {
     const plan = getDayPlan(date);
     plan.arrivalWindow = String(form.get("arrivalWindow") || "").trim();
     plan.note = String(form.get("note") || "").trim();
+    plan.privateNote = String(form.get("privateNote") || "").trim();
     plan.feeHours = String(form.get("feeHours") || "").trim();
     plan.hourlyRate = String(form.get("hourlyRate") || "").trim();
     setFlash(`Saved visit details for ${formatDate(date, { weekday: true })}.`);
@@ -1218,9 +1484,11 @@ function bindFamilyApp() {
     state.duplicateTargetDate = targetDate;
     getHousehold().assignments[targetDate] = {
       note: sourcePlan.note,
+      privateNote: sourcePlan.privateNote || "",
       arrivalWindow: sourcePlan.arrivalWindow,
       feeHours: sourcePlan.feeHours || "",
       hourlyRate: sourcePlan.hourlyRate || "",
+      paymentStatus: "unpaid",
       tasks: copiedTasks,
     };
     setFlash(`Copied the plan from ${formatDate(sourceDate, { weekday: true })} to ${formatDate(targetDate, { weekday: true })}.`);
@@ -1238,6 +1506,11 @@ function bindFamilyApp() {
       title,
       area: String(form.get("area") || "").trim(),
       notes: String(form.get("notes") || "").trim(),
+      recurrence: {
+        cadence: String(form.get("recurrenceCadence") || "manual"),
+        weekday: String(form.get("recurrenceWeekday") || "").trim(),
+        anchorDate: String(form.get("recurrenceAnchorDate") || "").trim(),
+      },
     });
     setFlash("Saved a new reusable task.");
     render();
@@ -1261,6 +1534,30 @@ function bindFamilyApp() {
       setFlash(`Assigned "${template.title}" to ${formatDate(date, { weekday: true })}.`);
       render();
     });
+  });
+
+  document.querySelector("[data-assign-all-recurring]")?.addEventListener("click", () => {
+    const date = state.selectedDate || todayString();
+    const recurringTemplates = getRecurringTemplatesForDate(date);
+    if (!recurringTemplates.length) {
+      setFlash("There are no recurring matches left for this day.");
+      render();
+      return;
+    }
+
+    const nextTasks = recurringTemplates.map((template) =>
+      createTaskAssignment({
+        title: template.title,
+        area: template.area,
+        notes: template.notes,
+        date,
+        source: "template",
+      })
+    );
+
+    replaceTasksForDate(date, [...getAssignmentsForDate(date), ...nextTasks]);
+    setFlash(`Added ${nextTasks.length} recurring ${nextTasks.length === 1 ? "task" : "tasks"} to ${formatDate(date, { weekday: true })}.`);
+    render();
   });
 
   document.querySelectorAll("[data-delete-template]").forEach((button) => {
@@ -1385,6 +1682,31 @@ function bindFamilyApp() {
     render();
   });
 
+  document.getElementById("caretaker-controls-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    getHousehold().settings = {
+      ...defaultHouseholdSettings(),
+      ...(getHousehold().settings || {}),
+      caretakerCompletionLock: Boolean(document.getElementById("caretaker-completion-lock")?.checked),
+    };
+    setFlash("Caretaker controls updated.");
+    render();
+  });
+
+  document.querySelectorAll("[data-toggle-payment-status]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const date = button.dataset.togglePaymentStatus;
+      const plan = getDayPlan(date);
+      plan.paymentStatus = plan.paymentStatus === "paid" ? "unpaid" : "paid";
+      setFlash(
+        plan.paymentStatus === "paid"
+          ? `Marked ${formatDate(date, { weekday: true })} as paid.`
+          : `Marked ${formatDate(date, { weekday: true })} as unpaid.`
+      );
+      render();
+    });
+  });
+
 }
 
 function renderHelperDashboard() {
@@ -1394,6 +1716,7 @@ function renderHelperDashboard() {
   const nextTask = tasks.find((task) => task.status !== "done");
   const helperDates = getHelperWindowDates();
   const feeSummary = getDayFeeSummary(selectedDate);
+  const completionLock = getHousehold().settings?.caretakerCompletionLock;
 
   return `
     <main class="shell">
@@ -1437,12 +1760,19 @@ function renderHelperDashboard() {
             <section class="dashboard-content">
               <section class="task-board helper-task-board">
                 <div class="task-board-header">
-                  <h3>${nextTask ? `Next task: ${escapeHtml(nextTask.title)}` : "Task list"}</h3>
+                  <h3>${tasks.length && remaining === 0 ? "All done for this day" : nextTask ? `Next task: ${escapeHtml(nextTask.title)}` : "Task list"}</h3>
                   ${plan.arrivalWindow ? `<span class="pill warm">${escapeHtml(plan.arrivalWindow)}</span>` : ""}
                 </div>
 
                 ${
-                  tasks.length
+                  tasks.length && remaining === 0
+                    ? `
+                      <div class="empty-state done-state">
+                        <h3>Everything is complete</h3>
+                        <p class="muted">Great work. All scheduled tasks for ${formatDate(selectedDate, { weekday: true })} are done.</p>
+                      </div>
+                    `
+                    : tasks.length
                     ? `
                       <div class="task-list clean-list helper-task-list">
                         ${tasks
@@ -1451,7 +1781,7 @@ function renderHelperDashboard() {
                               <article class="task-row ${task.status === "done" ? "task-complete" : ""}">
                                 <div class="task-row-main">
                                   <label class="task-row-check">
-                                    <input class="checkbox" data-helper-toggle="${task.id}" type="checkbox" ${task.status === "done" ? "checked" : ""} />
+                                    <input class="checkbox" data-helper-toggle="${task.id}" type="checkbox" ${task.status === "done" ? "checked" : ""} ${completionLock && task.status === "done" ? "disabled" : ""} />
                                     <span class="task-row-copy">
                                       <strong>${escapeHtml(task.title)}</strong>
                                       <span>${escapeHtml(task.area)}</span>
@@ -1529,11 +1859,19 @@ function bindHelperDashboard() {
   document.querySelectorAll("[data-helper-toggle]").forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
       const date = state.helperDate || todayString();
+      const completionLock = getHousehold().settings?.caretakerCompletionLock;
       replaceTasksForDate(
         date,
         getAssignmentsForDate(date).map((item) =>
           item.id === checkbox.dataset.helperToggle
-            ? { ...item, status: checkbox.checked ? "done" : "pending" }
+            ? {
+                ...item,
+                status: completionLock && item.status === "done"
+                  ? "done"
+                  : checkbox.checked
+                    ? "done"
+                    : "pending",
+              }
             : item
         )
       );
