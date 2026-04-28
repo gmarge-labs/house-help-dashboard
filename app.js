@@ -372,6 +372,25 @@ function getDayFeeSummary(date) {
   };
 }
 
+function getFeeRangeSummary(startDate, numberOfDays) {
+  const dates = Array.from({ length: numberOfDays }, (_, index) => {
+    const date = new Date(`${startDate}T12:00:00`);
+    date.setDate(date.getDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
+
+  return dates.reduce(
+    (summary, date) => {
+      const fee = getDayFeeSummary(date);
+      return {
+        hours: summary.hours + fee.hours,
+        total: summary.total + fee.total,
+      };
+    },
+    { hours: 0, total: 0 }
+  );
+}
+
 function replaceTasksForDate(date, tasks) {
   const plan = ensureDayPlan(date);
   plan.tasks = tasks.map((task, index) => ({
@@ -963,6 +982,8 @@ function renderSettingsPage() {
   const shareUrl = getShareUrl();
   const plan = getDayPlan(selectedDate);
   const feeSummary = getDayFeeSummary(selectedDate);
+  const weeklyFeeSummary = getFeeRangeSummary(selectedDate, 7);
+  const biweeklyFeeSummary = getFeeRangeSummary(selectedDate, 14);
 
   return `
     <section class="planner-layout">
@@ -1064,6 +1085,14 @@ function renderSettingsPage() {
             <div class="info-line">
               <strong>Calculated total</strong>
               <span>$${feeSummary.total.toFixed(2)}</span>
+            </div>
+            <div class="info-line">
+              <strong>Weekly total</strong>
+              <span>$${weeklyFeeSummary.total.toFixed(2)}</span>
+            </div>
+            <div class="info-line">
+              <strong>Biweekly total</strong>
+              <span>$${biweeklyFeeSummary.total.toFixed(2)}</span>
             </div>
           </div>
           <div class="actions">
