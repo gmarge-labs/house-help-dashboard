@@ -717,6 +717,12 @@ button {
   max-width: 320px;
 }
 
+.helper-select-inline select {
+  min-height: 58px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+}
+
 .dashboard-topbar,
 .task-board-header,
 .notes-footer-header {
