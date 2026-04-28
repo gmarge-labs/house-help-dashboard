@@ -2244,41 +2244,22 @@ function renderHelperDashboard() {
             </section>
 
             <section class="panel notes-footer helper-day-summary">
-              <div class="section-header notes-footer-header">
-                <h3>Day summary</h3>
-              </div>
-              <div class="helper-day-summary-grid">
-                <div class="info-line">
-                  <strong>Planned task time</strong>
-                  <span>${formatHours(workload.taskHours)}</span>
+              <div class="helper-day-summary-strip">
+                <div class="summary-chip">
+                  <strong>Plan</strong>
+                  <span>${formatHours(workload.taskHours)} / ${feeSummary.hours ? formatHours(feeSummary.hours) : "No limit"}</span>
                 </div>
-                <div class="info-line">
-                  <strong>Total hours</strong>
-                  <span>${feeSummary.hours ? formatHours(feeSummary.hours) : "Not set"}</span>
-                </div>
-                <div class="info-line">
-                  <strong>Pay for this day</strong>
+                <div class="summary-chip">
+                  <strong>Pay</strong>
                   <span>$${feeSummary.total.toFixed(2)}</span>
                 </div>
-                <div class="info-line">
-                  <strong>Daily fit</strong>
-                  <span>${workload.isOverLimit ? `Over by ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
-                </div>
-                <div class="info-line">
-                  <strong>Started</strong>
-                  <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
-                </div>
-                <div class="info-line">
-                  <strong>Finished</strong>
-                  <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
-                </div>
-                <div class="info-line">
-                  <strong>Hours spent</strong>
-                  <span>${session.end ? formatHours(session.spentHours) : session.start ? "In progress" : "Not tracked"}</span>
-                </div>
-                <div class="info-line">
+                <div class="summary-chip">
                   <strong>Timer</strong>
                   <span>${formatElapsedTime(session.totalMs)}</span>
+                </div>
+                <div class="summary-chip ${workload.isOverLimit ? "summary-chip-warn" : ""}">
+                  <strong>Fit</strong>
+                  <span>${workload.isOverLimit ? `Over ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
                 </div>
               </div>
               <div class="actions helper-session-actions">
