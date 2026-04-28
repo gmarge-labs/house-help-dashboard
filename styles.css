@@ -151,7 +151,7 @@ button {
 
 .helper-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   padding-top: 8px;
   flex-shrink: 0;
@@ -726,7 +726,7 @@ button {
   margin: 0 0 6px;
   font-family: "Fraunces", serif;
   font-size: 1.7rem;
-  color: #34495d;
+  color: #b9c0c9;
 }
 
 .score-card,
