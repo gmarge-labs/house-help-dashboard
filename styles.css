@@ -918,6 +918,7 @@ button {
 .helper-day-summary {
   width: min(620px, 100%);
   margin-top: 0;
+  justify-self: center;
 }
 
 .helper-day-summary-strip {
