@@ -677,7 +677,7 @@ button {
 
 .helper-topline {
   align-items: start;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .helper-topline-main {
@@ -835,6 +835,7 @@ button {
 }
 
 .helper-frame .dashboard-layout {
+  gap: 8px;
   min-height: 0;
   height: auto;
   overflow: visible;
@@ -916,7 +917,7 @@ button {
 
 .helper-day-summary {
   width: min(700px, 100%);
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .helper-day-summary-strip {
