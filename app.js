@@ -731,8 +731,6 @@ function renderLogin() {
   return `
     <main class="login-wrap">
       <section class="login-card">
-        <div class="eyebrow">Shared home dashboard</div>
-
         <div class="login-actions">
           <div class="login-switch">
             <button class="${role === "family" ? "active" : ""}" data-role-switch="family" type="button">Planner</button>
