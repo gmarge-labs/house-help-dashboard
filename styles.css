@@ -149,6 +149,14 @@ button {
   flex-wrap: wrap;
 }
 
+.helper-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
 .app-title {
   margin: 12px 0 8px;
   font-family: "Fraunces", serif;
@@ -666,16 +674,6 @@ button {
   justify-content: flex-end;
 }
 
-.helper-singleline-side {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.helper-logout-button {
-  flex-shrink: 0;
-}
-
 .helper-topline {
   align-items: end;
   margin-bottom: 12px;
@@ -819,7 +817,7 @@ button {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
 
 .helper-task-board {
