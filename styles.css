@@ -696,11 +696,12 @@ button {
 
 .helper-singleline-main {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 18px;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
   min-width: 0;
   flex: 1;
+  flex-wrap: nowrap;
 }
 
 .helper-singleline-side {
@@ -712,6 +713,8 @@ button {
 
 .helper-select-inline {
   margin-bottom: 0;
+  flex: 0 0 320px;
+  max-width: 320px;
 }
 
 .dashboard-topbar,
@@ -724,7 +727,7 @@ button {
 }
 
 .page-title {
-  margin: 0 0 6px;
+  margin: 0;
   font-family: "Fraunces", serif;
   font-size: 1.7rem;
   color: #b9c0c9;
@@ -892,9 +895,14 @@ button {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  flex: 1;
 }
 
 .helper-day-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 14px;
 }
 
@@ -927,7 +935,8 @@ button {
 
 .helper-session-actions {
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .payment-history {
