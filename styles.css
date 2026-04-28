@@ -719,9 +719,16 @@ button {
 }
 
 .helper-select-inline select {
+  display: block;
+  height: 58px;
   min-height: 58px;
-  padding: 10px 14px;
+  max-height: 58px;
+  padding: 0 14px;
   font-size: 0.95rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .dashboard-topbar,
