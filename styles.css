@@ -715,6 +715,7 @@ button {
   margin-bottom: 0;
   flex: 0 0 300px;
   max-width: 300px;
+  align-self: flex-start;
 }
 
 .helper-select-inline select {
