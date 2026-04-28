@@ -1065,6 +1065,22 @@ button {
   width: min(760px, 100%);
 }
 
+.login-card {
+  text-align: center;
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.login-card form {
+  width: min(420px, 100%);
+}
+
+.login-card .field {
+  text-align: left;
+  width: 100%;
+}
+
 .login-switch {
   display: inline-flex;
   background: rgba(255, 255, 255, 0.7);
@@ -1095,6 +1111,33 @@ button {
   color: #8c3f24;
   font-size: 0.92rem;
   font-weight: 500;
+}
+
+.welcome-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 20, 30, 0.38);
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+.welcome-modal {
+  width: min(460px, 100%);
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 252, 247, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.welcome-modal h2 {
+  margin: 14px 0 0;
+  font-family: "Fraunces", serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
 }
 
 .calendar-row {

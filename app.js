@@ -85,6 +85,7 @@ function defaultState() {
     openInstructionTaskId: null,
     editingTaskId: null,
     editingTemplateId: null,
+    welcomeRole: null,
     flash: "",
   };
 }
@@ -157,6 +158,7 @@ function normalizeState(raw) {
   if (raw?.household) {
     next.household = {
       name: raw.household.name || "",
+      plannerName: raw.household.plannerName || "Halima",
       helperName: raw.household.helperName || "",
       familyPin: raw.household.familyPin || "",
       helperPin: raw.household.helperPin || "",
@@ -622,13 +624,16 @@ function render() {
     return;
   }
 
-  app.innerHTML = state.session.role === "family" ? renderFamilyApp() : renderHelperDashboard();
+  const mainView = state.session.role === "family" ? renderFamilyApp() : renderHelperDashboard();
+  app.innerHTML = `${mainView}${state.welcomeRole ? renderWelcomeModal() : ""}`;
 
   if (state.session.role === "family") {
     bindFamilyApp();
   } else {
     bindHelperDashboard();
   }
+
+  bindWelcomeModal();
 
   persistHouseholdToCloud();
 }
@@ -692,6 +697,7 @@ function bindSetup() {
       ...defaultState(),
       household: {
         name: householdName,
+        plannerName: "Halima",
         helperName,
         familyPin,
         helperPin,
@@ -720,13 +726,12 @@ function bindSetup() {
 }
 
 function renderLogin() {
-  const household = getHousehold();
   const role = state.loginRole || "helper";
 
   return `
     <main class="login-wrap">
       <section class="login-card">
-        <div class="eyebrow">${escapeHtml(household.name)}</div>
+        <div class="eyebrow">Shared home dashboard</div>
 
         <div class="login-actions">
           <div class="login-switch">
@@ -749,6 +754,25 @@ function renderLogin() {
         </form>
       </section>
     </main>
+  `;
+}
+
+function renderWelcomeModal() {
+  const household = getHousehold();
+  const label = state.welcomeRole === "family"
+    ? household.plannerName || "Halima"
+    : household.helperName || "Caretaker";
+
+  return `
+    <div class="welcome-modal-backdrop">
+      <section class="welcome-modal">
+        <div class="eyebrow">Welcome back</div>
+        <h2>Welcome back ${escapeHtml(label)}</h2>
+        <div class="actions">
+          <button class="btn btn-primary" data-close-welcome type="button">Continue</button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -781,9 +805,18 @@ function bindLogin() {
     }
 
     state.session = { role };
+    state.welcomeRole = role;
     if (role === "helper") {
       state.helperDate = todayString();
     }
+    clearFlash();
+    render();
+  });
+}
+
+function bindWelcomeModal() {
+  document.querySelector("[data-close-welcome]")?.addEventListener("click", () => {
+    state.welcomeRole = null;
     clearFlash();
     render();
   });
