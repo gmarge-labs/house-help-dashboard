@@ -1053,8 +1053,8 @@ function renderPlannerPage() {
   switch (plannerSection) {
     case "tasks":
       activePanel = `
-        <section class="panel planner-active-panel">
-          <div class="section-header">
+        <section class="panel planner-active-panel planner-day-panel">
+          <div class="section-header planner-day-header">
             <div>
               <h2>Tasks for this date</h2>
               <p class="small-note">Reorder, remove, and edit tasks for this visit.</p>
@@ -1306,11 +1306,11 @@ function renderPlannerPage() {
                 />
               </div>
             </div>
-            <div class="field" style="margin-top: 14px;">
+            <div class="field planner-day-note-field">
               <label for="day-note">Daily note</label>
               <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
             </div>
-            <div class="field" style="margin-top: 14px;">
+            <div class="field planner-day-note-field">
               <label for="private-note">Private planner note</label>
               <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
             </div>
@@ -1356,7 +1356,7 @@ function renderPlannerPage() {
                 `
                 : ""
             }
-            <div class="actions">
+            <div class="actions planner-day-actions">
               <button class="btn btn-primary" type="submit">Save visit details</button>
             </div>
           </form>

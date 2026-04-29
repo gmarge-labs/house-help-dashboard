@@ -373,13 +373,34 @@ button {
 
 .planner-day-form {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .planner-day-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
   justify-content: start;
   align-items: end;
+  gap: 12px;
+}
+
+.planner-day-panel {
+  padding: 18px 20px;
+}
+
+.planner-day-header {
+  margin-bottom: 10px;
+}
+
+.planner-day-note-field {
+  margin-top: 6px;
+}
+
+.planner-day-note-field textarea {
+  min-height: 72px;
+}
+
+.planner-day-actions {
+  margin-top: 10px;
 }
 
 .field {
