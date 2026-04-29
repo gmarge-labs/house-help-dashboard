@@ -654,6 +654,56 @@ button {
   gap: 20px;
 }
 
+.planner-control-strip {
+  display: grid;
+  gap: 14px;
+}
+
+.planner-control-header {
+  margin-bottom: 0;
+}
+
+.planner-section-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.planner-section-button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(33, 49, 61, 0.08);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.planner-section-button strong {
+  font-size: 1rem;
+}
+
+.planner-section-button span {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.planner-section-button.is-active {
+  background: linear-gradient(180deg, rgba(29, 122, 114, 0.16), rgba(255, 255, 255, 0.82));
+  border-color: rgba(29, 122, 114, 0.24);
+  box-shadow: 0 18px 36px rgba(29, 122, 114, 0.14);
+}
+
+.planner-active-panel {
+  min-width: 0;
+}
+
+.planner-quick-glance {
+  display: grid;
+}
+
 .dashboard-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

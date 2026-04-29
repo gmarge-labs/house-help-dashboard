@@ -80,6 +80,7 @@ function defaultState() {
     session: { role: null },
     loginRole: "helper",
     familyPage: "dashboard",
+    plannerSection: "day-details",
     selectedDate: todayString(),
     helperDate: todayString(),
     duplicateTargetDate: futureDate(1),
@@ -1038,294 +1039,374 @@ function renderPlannerPage() {
   const monthDays = getMonthMatrix(selectedDate);
   const workload = getDayWorkloadSummary(selectedDate);
   const session = getDayWorkSessionSummary(selectedDate);
+  const plannerSection = state.plannerSection || "day-details";
+  const plannerSections = [
+    { id: "day-details", label: "Day details", meta: `${tasks.length} tasks` },
+    { id: "tasks", label: "Tasks", meta: `${tasks.length} planned` },
+    { id: "recurring", label: "Recurring", meta: `${recurringTemplates.length} matches` },
+    { id: "month", label: "Monthly", meta: "Calendar" },
+    { id: "upcoming", label: "Upcoming", meta: `${upcoming.length} dates` },
+    { id: "copy", label: "Copy plan", meta: "Duplicate" },
+  ];
+  let activePanel = "";
+
+  switch (plannerSection) {
+    case "tasks":
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <div>
+              <h2>Tasks for this date</h2>
+              <p class="small-note">Reorder, remove, and edit tasks for this visit.</p>
+            </div>
+          </div>
+
+          <div class="task-list">
+            ${
+              tasks.length
+                ? tasks
+                    .map((task, index) => {
+                      const canMoveUp = index > 0;
+                      const canMoveDown = index < tasks.length - 1;
+                      return `
+                        <article class="task-card">
+                          <header>
+                            <div>
+                              <h4>${escapeHtml(task.title)}</h4>
+                              <div class="small-note">${escapeHtml(task.notes || "No note added yet.")}</div>
+                              <div class="small-note">${task.estimateHours ? formatHours(task.estimateHours) : "No time estimate yet."}</div>
+                            </div>
+                            <span class="pill">${escapeHtml(task.area)}</span>
+                          </header>
+                          ${
+                            state.editingTaskId === task.id
+                              ? `
+                                <form class="inline-edit-form" data-edit-task-form="${task.id}">
+                                  <div class="form-grid">
+                                    <div class="field">
+                                      <label>Task name</label>
+                                      <input name="title" value="${escapeHtml(task.title)}" required />
+                                    </div>
+                                    <div class="field">
+                                      <label>Area</label>
+                                      <input name="area" value="${escapeHtml(task.area)}" />
+                                    </div>
+                                    <div class="field">
+                                      <label>Estimated hours</label>
+                                      <input name="estimateHours" type="number" min="0" step="0.25" value="${escapeHtml(String(task.estimateHours || ""))}" />
+                                    </div>
+                                  </div>
+                                  <div class="field" style="margin-top: 14px;">
+                                    <label>Instructions</label>
+                                    <textarea name="notes">${escapeHtml(task.notes || "")}</textarea>
+                                  </div>
+                                  <div class="actions">
+                                    <button class="btn btn-primary btn-sm" type="submit">Save task</button>
+                                    <button class="btn btn-ghost btn-sm" data-cancel-edit-task="${task.id}" type="button">Cancel</button>
+                                  </div>
+                                </form>
+                              `
+                              : ""
+                          }
+                          <div class="task-actions" style="margin-top: 14px;">
+                            <button class="btn btn-secondary" data-edit-task="${task.id}" type="button">Edit</button>
+                            <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="up" type="button" ${canMoveUp ? "" : "disabled"}>Move up</button>
+                            <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="down" type="button" ${canMoveDown ? "" : "disabled"}>Move down</button>
+                            <button class="btn btn-ghost" data-delete-task="${task.id}" type="button">Remove</button>
+                          </div>
+                        </article>
+                      `;
+                    })
+                    .join("")
+                : `
+                  <div class="empty-state">
+                    <h3>Nothing planned yet</h3>
+                    <p class="muted">Assign a saved task or add a recurring suggestion.</p>
+                  </div>
+                `
+            }
+          </div>
+        </section>
+      `;
+      break;
+    case "recurring":
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <div>
+              <h2>Recurring suggestions</h2>
+              <p class="small-note">Reusable tasks that match this date and are not yet on the list.</p>
+            </div>
+            <span class="pill">${recurringTemplates.length} matches</span>
+          </div>
+          ${
+            recurringTemplates.length
+              ? `
+                <div class="template-list">
+                  ${recurringTemplates
+                    .map(
+                      (template) => `
+                        <article class="task-card">
+                          <header>
+                            <div>
+                              <h4>${escapeHtml(template.title)}</h4>
+                              <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
+                              <div class="small-note">${template.estimateHours ? formatHours(template.estimateHours) : "No time estimate yet."}</div>
+                            </div>
+                            <span class="pill">${escapeHtml(template.area || "General")}</span>
+                          </header>
+                          <div class="template-actions" style="margin-top: 14px;">
+                            <button class="btn btn-secondary" data-assign-template="${template.id}" type="button">Add to this day</button>
+                          </div>
+                        </article>
+                      `
+                    )
+                    .join("")}
+                </div>
+                <div class="actions">
+                  <button class="btn btn-primary" data-assign-all-recurring type="button">Add all recurring matches</button>
+                </div>
+              `
+              : `
+                <div class="empty-state">
+                  <h3>No recurring tasks to add</h3>
+                  <p class="muted">Templates with every-visit, weekly, or biweekly schedules will appear here when they match this date.</p>
+                </div>
+              `
+          }
+        </section>
+      `;
+      break;
+    case "month":
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <div>
+              <h2>Monthly view</h2>
+              <p class="small-note">See planned days, task counts, and daily pay across the month.</p>
+            </div>
+          </div>
+          <div class="month-grid-labels">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="month-grid">
+            ${monthDays
+              .map((day) => {
+                const taskCount = getAssignmentsForDate(day.date).length;
+                const fee = getDayFeeSummary(day.date);
+                return `
+                  <button class="month-cell ${day.inMonth ? "" : "month-cell-muted"} ${day.date === selectedDate ? "month-cell-active" : ""}" data-pick-date="${day.date}" type="button">
+                    <strong>${day.day}</strong>
+                    <span>${taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "Off"}</span>
+                    <small>$${fee.total.toFixed(0)}</small>
+                  </button>
+                `;
+              })
+              .join("")}
+          </div>
+        </section>
+      `;
+      break;
+    case "upcoming":
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <h2>Upcoming visit days</h2>
+            <span class="pill">${upcoming.length} dates</span>
+          </div>
+          ${
+            upcoming.length
+              ? `
+                <div class="calendar-list">
+                  ${upcoming
+                    .map((date) => {
+                      const count = getAssignmentsForDate(date).length;
+                      return `
+                        <button class="day-card day-card-button" data-pick-date="${date}" type="button">
+                          <strong>${formatDate(date, { weekday: true })}</strong>
+                          <div class="small-note">${count} ${count === 1 ? "task" : "tasks"} planned</div>
+                        </button>
+                      `;
+                    })
+                    .join("")}
+                </div>
+              `
+              : `
+                <div class="empty-state">
+                  <h3>No upcoming days yet</h3>
+                  <p class="muted">As soon as you add tasks or a note to a date, it will show here.</p>
+                </div>
+              `
+          }
+        </section>
+      `;
+      break;
+    case "copy":
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <h2>Copy this plan</h2>
+            <span class="pill">Duplicate day</span>
+          </div>
+          <div class="field">
+            <label for="duplicate-target-date">Copy this plan to</label>
+            <input id="duplicate-target-date" name="targetDate" type="date" value="${state.duplicateTargetDate || futureDate(1)}" />
+          </div>
+          <div class="actions">
+            <button class="btn btn-secondary" id="duplicate-day-button" type="button">Duplicate day</button>
+          </div>
+        </section>
+      `;
+      break;
+    case "day-details":
+    default:
+      activePanel = `
+        <section class="panel planner-active-panel">
+          <div class="section-header">
+            <div>
+              <h2>Plan this day</h2>
+              <p class="small-note">Build the checklist, save the day note, and set the hours and pay for this visit.</p>
+            </div>
+            <span class="pill">${tasks.length} tasks</span>
+          </div>
+
+          <form id="day-details-form">
+            <div class="form-grid">
+              <div class="field">
+                <label for="arrival-window">Arrival window</label>
+                <input id="arrival-window" name="arrivalWindow" value="${escapeHtml(plan.arrivalWindow)}" placeholder="10:00 AM to 2:00 PM" />
+              </div>
+              <div class="field">
+                <label for="fee-hours">Daily work limit</label>
+                <input
+                  id="fee-hours"
+                  name="feeHours"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value="${escapeHtml(String(plan.feeHours || ""))}"
+                  placeholder="6"
+                />
+              </div>
+              <div class="field">
+                <label for="hourly-rate">Price per hour</label>
+                <input
+                  id="hourly-rate"
+                  name="hourlyRate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value="${escapeHtml(String(plan.hourlyRate || ""))}"
+                  placeholder="25"
+                />
+              </div>
+            </div>
+            <div class="field" style="margin-top: 14px;">
+              <label for="day-note">Daily note</label>
+              <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
+            </div>
+            <div class="field" style="margin-top: 14px;">
+              <label for="private-note">Private planner note</label>
+              <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
+            </div>
+            <div class="info-card" style="margin-top: 18px;">
+              <div class="info-line">
+                <strong>Calculated pay for this day</strong>
+                <span>$${feeSummary.total.toFixed(2)}</span>
+              </div>
+              <div class="info-line">
+                <strong>Planned task time</strong>
+                <span>${formatHours(workload.taskHours)}</span>
+              </div>
+              <div class="info-line">
+                <strong>Daily limit</strong>
+                <span>${workload.limitHours ? formatHours(workload.limitHours) : "Not set"}</span>
+              </div>
+              <div class="info-line">
+                <strong>Work started</strong>
+                <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
+              </div>
+              <div class="info-line">
+                <strong>Work finished</strong>
+                <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
+              </div>
+              <div class="info-line">
+                <strong>Hours spent</strong>
+                <span>${session.end ? formatHours(session.spentHours) : "In progress"}</span>
+              </div>
+              <div class="info-line">
+                <strong>Timer</strong>
+                <span>${formatElapsedTime(session.totalMs)}</span>
+              </div>
+            </div>
+            ${
+              workload.isOverLimit
+                ? `
+                  <div class="info-card workload-warning" style="margin-top: 18px;">
+                    <div class="info-line">
+                      <strong>Time warning</strong>
+                      <span>Tasks exceed the day by ${formatHours(workload.overloadHours)}</span>
+                    </div>
+                  </div>
+                `
+                : ""
+            }
+            <div class="actions">
+              <button class="btn btn-primary" type="submit">Save visit details</button>
+            </div>
+          </form>
+        </section>
+      `;
+      break;
+  }
 
   return `
     <section class="planner-layout">
-      <section class="panel">
-        <div class="section-header">
+      <section class="planner-control-strip">
+        <div class="section-header planner-control-header">
           <div>
-            <h2>Plan this day</h2>
-            <p class="small-note">Build the checklist, save the day note, and set the hours and pay for this visit.</p>
-          </div>
-          <span class="pill">${tasks.length} tasks</span>
-        </div>
-
-        <form id="day-details-form">
-          <div class="form-grid">
-            <div class="field">
-              <label for="arrival-window">Arrival window</label>
-              <input id="arrival-window" name="arrivalWindow" value="${escapeHtml(plan.arrivalWindow)}" placeholder="10:00 AM to 2:00 PM" />
-            </div>
-            <div class="field">
-              <label for="fee-hours">Daily work limit</label>
-              <input
-                id="fee-hours"
-                name="feeHours"
-                type="number"
-                min="0"
-                step="0.25"
-                value="${escapeHtml(String(plan.feeHours || ""))}"
-                placeholder="6"
-              />
-            </div>
-            <div class="field">
-              <label for="hourly-rate">Price per hour</label>
-              <input
-                id="hourly-rate"
-                name="hourlyRate"
-                type="number"
-                min="0"
-                step="0.01"
-                value="${escapeHtml(String(plan.hourlyRate || ""))}"
-                placeholder="25"
-              />
-            </div>
-          </div>
-          <div class="field" style="margin-top: 14px;">
-            <label for="day-note">Daily note</label>
-            <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
-          </div>
-          <div class="field" style="margin-top: 14px;">
-            <label for="private-note">Private planner note</label>
-            <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
-          </div>
-          <div class="info-card" style="margin-top: 18px;">
-            <div class="info-line">
-              <strong>Calculated pay for this day</strong>
-              <span>$${feeSummary.total.toFixed(2)}</span>
-            </div>
-            <div class="info-line">
-              <strong>Planned task time</strong>
-              <span>${formatHours(workload.taskHours)}</span>
-            </div>
-            <div class="info-line">
-              <strong>Daily limit</strong>
-              <span>${workload.limitHours ? formatHours(workload.limitHours) : "Not set"}</span>
-            </div>
-            <div class="info-line">
-              <strong>Work started</strong>
-              <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
-            </div>
-            <div class="info-line">
-              <strong>Work finished</strong>
-              <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
-            </div>
-            <div class="info-line">
-              <strong>Hours spent</strong>
-              <span>${session.end ? formatHours(session.spentHours) : "In progress"}</span>
-            </div>
-            <div class="info-line">
-              <strong>Timer</strong>
-              <span>${formatElapsedTime(session.totalMs)}</span>
-            </div>
-          </div>
-          ${
-            workload.isOverLimit
-              ? `
-                <div class="info-card workload-warning" style="margin-top: 18px;">
-                  <div class="info-line">
-                    <strong>Time warning</strong>
-                    <span>Tasks exceed the day by ${formatHours(workload.overloadHours)}</span>
-                  </div>
-                </div>
-              `
-              : ""
-          }
-          <div class="actions">
-            <button class="btn btn-primary" type="submit">Save visit details</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="panel">
-        <div class="section-header">
-          <div>
-            <h2>Tasks for this date</h2>
-            <p class="small-note">Reorder, remove, and add one-off tasks here.</p>
+            <h2>Planner workspace</h2>
+            <p class="small-note">Open one section at a time to keep the page clean and focused.</p>
           </div>
         </div>
-
-        <div class="task-list">
-          ${
-            tasks.length
-              ? tasks
-                  .map((task, index) => {
-                    const canMoveUp = index > 0;
-                    const canMoveDown = index < tasks.length - 1;
-                    return `
-                      <article class="task-card">
-                        <header>
-                          <div>
-                            <h4>${escapeHtml(task.title)}</h4>
-                            <div class="small-note">${escapeHtml(task.notes || "No note added yet.")}</div>
-                            <div class="small-note">${task.estimateHours ? formatHours(task.estimateHours) : "No time estimate yet."}</div>
-                          </div>
-                          <span class="pill">${escapeHtml(task.area)}</span>
-                        </header>
-                        ${
-                          state.editingTaskId === task.id
-                            ? `
-                              <form class="inline-edit-form" data-edit-task-form="${task.id}">
-                                <div class="form-grid">
-                                  <div class="field">
-                                    <label>Task name</label>
-                                    <input name="title" value="${escapeHtml(task.title)}" required />
-                                  </div>
-                                  <div class="field">
-                                    <label>Area</label>
-                                    <input name="area" value="${escapeHtml(task.area)}" />
-                                  </div>
-                                  <div class="field">
-                                    <label>Estimated hours</label>
-                                    <input name="estimateHours" type="number" min="0" step="0.25" value="${escapeHtml(String(task.estimateHours || ""))}" />
-                                  </div>
-                                </div>
-                                <div class="field" style="margin-top: 14px;">
-                                  <label>Instructions</label>
-                                  <textarea name="notes">${escapeHtml(task.notes || "")}</textarea>
-                                </div>
-                                <div class="actions">
-                                  <button class="btn btn-primary btn-sm" type="submit">Save task</button>
-                                  <button class="btn btn-ghost btn-sm" data-cancel-edit-task="${task.id}" type="button">Cancel</button>
-                                </div>
-                              </form>
-                            `
-                            : ""
-                        }
-                        <div class="task-actions" style="margin-top: 14px;">
-                          <button class="btn btn-secondary" data-edit-task="${task.id}" type="button">Edit</button>
-                          <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="up" type="button" ${canMoveUp ? "" : "disabled"}>Move up</button>
-                          <button class="btn btn-secondary" data-move-task="${task.id}" data-direction="down" type="button" ${canMoveDown ? "" : "disabled"}>Move down</button>
-                          <button class="btn btn-ghost" data-delete-task="${task.id}" type="button">Remove</button>
-                        </div>
-                      </article>
-                    `;
-                  })
-                  .join("")
-              : `
-                <div class="empty-state">
-                  <h3>Nothing planned yet</h3>
-                  <p class="muted">Assign a saved task or add a one-off task below.</p>
-                </div>
-              `
-          }
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="section-header">
-          <div>
-            <h2>Recurring suggestions</h2>
-            <p class="small-note">Reusable tasks that match this date and are not yet on the list.</p>
-          </div>
-          <span class="pill">${recurringTemplates.length} matches</span>
-        </div>
-        ${
-          recurringTemplates.length
-            ? `
-              <div class="template-list">
-                ${recurringTemplates
-                  .map(
-                    (template) => `
-                      <article class="task-card">
-                        <header>
-                          <div>
-                            <h4>${escapeHtml(template.title)}</h4>
-                            <div class="small-note">${formatRecurrenceLabel(template.recurrence)}</div>
-                            <div class="small-note">${template.estimateHours ? formatHours(template.estimateHours) : "No time estimate yet."}</div>
-                          </div>
-                          <span class="pill">${escapeHtml(template.area || "General")}</span>
-                        </header>
-                        <div class="template-actions" style="margin-top: 14px;">
-                          <button class="btn btn-secondary" data-assign-template="${template.id}" type="button">Add to this day</button>
-                        </div>
-                      </article>
-                    `
-                  )
-                  .join("")}
-              </div>
-              <div class="actions">
-                <button class="btn btn-primary" data-assign-all-recurring type="button">Add all recurring matches</button>
-              </div>
-            `
-            : `
-              <div class="empty-state">
-                <h3>No recurring tasks to add</h3>
-                <p class="muted">Templates with every-visit, weekly, or biweekly schedules will appear here when they match this date.</p>
-              </div>
-            `
-        }
-      </section>
-
-      <section class="panel">
-        <div class="section-header">
-          <div>
-            <h2>Monthly view</h2>
-            <p class="small-note">See planned days, task counts, and daily pay across the month.</p>
-          </div>
-        </div>
-        <div class="month-grid-labels">
-          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-        </div>
-        <div class="month-grid">
-          ${monthDays
-            .map((day) => {
-              const taskCount = getAssignmentsForDate(day.date).length;
-              const fee = getDayFeeSummary(day.date);
-              return `
-                <button class="month-cell ${day.inMonth ? "" : "month-cell-muted"} ${day.date === selectedDate ? "month-cell-active" : ""}" data-pick-date="${day.date}" type="button">
-                  <strong>${day.day}</strong>
-                  <span>${taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "Off"}</span>
-                  <small>$${fee.total.toFixed(0)}</small>
+        <div class="planner-section-buttons">
+          ${plannerSections
+            .map(
+              (section) => `
+                <button class="planner-section-button ${plannerSection === section.id ? "is-active" : ""}" data-planner-section="${section.id}" type="button">
+                  <strong>${section.label}</strong>
+                  <span>${section.meta}</span>
                 </button>
-              `;
-            })
+              `
+            )
             .join("")}
         </div>
       </section>
 
-      <section class="panel">
-        <div class="section-header">
-          <h2>Upcoming visit days</h2>
-          <span class="pill">${upcoming.length} dates</span>
-        </div>
-        ${
-          upcoming.length
-            ? `
-              <div class="calendar-list">
-                ${upcoming
-                  .map((date) => {
-                    const count = getAssignmentsForDate(date).length;
-                    return `
-                      <button class="day-card day-card-button" data-pick-date="${date}" type="button">
-                        <strong>${formatDate(date, { weekday: true })}</strong>
-                        <div class="small-note">${count} ${count === 1 ? "task" : "tasks"} planned</div>
-                      </button>
-                    `;
-                  })
-                  .join("")}
-              </div>
-            `
-            : `
-              <div class="empty-state">
-                <h3>No upcoming days yet</h3>
-                <p class="muted">As soon as you add tasks or a note to a date, it will show here.</p>
-              </div>
-            `
-        }
-      </section>
+      ${activePanel}
 
-      <section class="panel">
-        <div class="section-header">
-          <h2>Copy this plan</h2>
-          <span class="pill">Duplicate day</span>
-        </div>
-        <div class="field">
-          <label for="duplicate-target-date">Copy this plan to</label>
-          <input id="duplicate-target-date" name="targetDate" type="date" value="${state.duplicateTargetDate || futureDate(1)}" />
-        </div>
-        <div class="actions">
-          <button class="btn btn-secondary" id="duplicate-day-button" type="button">Duplicate day</button>
+      <section class="planner-quick-glance">
+        <div class="info-card">
+          <div class="info-line">
+            <strong>Selected date</strong>
+            <span>${formatDate(selectedDate, { weekday: true })}</span>
+          </div>
+          <div class="info-line">
+            <strong>Tasks planned</strong>
+            <span>${tasks.length}</span>
+          </div>
+          <div class="info-line">
+            <strong>Calculated pay</strong>
+            <span>$${feeSummary.total.toFixed(2)}</span>
+          </div>
+          <div class="info-line">
+            <strong>Planned task time</strong>
+            <span>${formatHours(workload.taskHours)}</span>
+          </div>
+          <div class="info-line">
+            <strong>Recurring matches</strong>
+            <span>${recurringTemplates.length}</span>
+          </div>
         </div>
       </section>
     </section>
@@ -1723,6 +1804,15 @@ function bindFamilyApp() {
   document.querySelectorAll("[data-family-page]").forEach((button) => {
     button.addEventListener("click", () => {
       state.familyPage = button.dataset.familyPage;
+      clearFlash();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-planner-section]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.plannerSection = button.dataset.plannerSection;
+      state.editingTaskId = null;
       clearFlash();
       render();
     });
