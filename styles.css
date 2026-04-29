@@ -1145,6 +1145,30 @@ button {
   line-height: 1.6;
 }
 
+.planner-stats-card {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.planner-stat {
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(33, 49, 61, 0.06);
+}
+
+.planner-stat strong {
+  font-size: 0.75rem;
+}
+
+.planner-stat span {
+  font-size: 0.98rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
 .empty-state {
   border-radius: 22px;
   padding: 28px;

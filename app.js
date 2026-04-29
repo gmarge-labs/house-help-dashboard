@@ -1309,32 +1309,32 @@ function renderPlannerPage() {
               <label for="private-note">Private planner note</label>
               <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
             </div>
-            <div class="info-card" style="margin-top: 18px;">
-              <div class="info-line">
+            <div class="info-card planner-stats-card" style="margin-top: 18px;">
+              <div class="info-line planner-stat">
                 <strong>Calculated pay for this day</strong>
                 <span>$${feeSummary.total.toFixed(2)}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Planned task time</strong>
                 <span>${formatHours(workload.taskHours)}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Daily limit</strong>
                 <span>${workload.limitHours ? formatHours(workload.limitHours) : "Not set"}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Work started</strong>
                 <span>${session.start ? formatDateTime(plan.workStartAt) : "Not started"}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Work finished</strong>
                 <span>${session.end ? formatDateTime(plan.workEndAt) : "Not finished"}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Hours spent</strong>
                 <span>${session.end ? formatHours(session.spentHours) : "In progress"}</span>
               </div>
-              <div class="info-line">
+              <div class="info-line planner-stat">
                 <strong>Timer</strong>
                 <span>${formatElapsedTime(session.totalMs)}</span>
               </div>
