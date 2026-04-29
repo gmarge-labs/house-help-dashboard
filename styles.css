@@ -715,6 +715,34 @@ button {
   display: grid;
 }
 
+.planner-calendar-dropdown {
+  display: grid;
+  gap: 14px;
+}
+
+.planner-calendar-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.planner-calendar-summary::-webkit-details-marker {
+  display: none;
+}
+
+.planner-calendar-summary h2,
+.planner-calendar-summary p {
+  margin: 0;
+}
+
+.planner-calendar-body {
+  display: grid;
+  gap: 10px;
+}
+
 .planner-quick-card {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;

@@ -1180,30 +1180,35 @@ function renderPlannerPage() {
     case "month":
       activePanel = `
         <section class="panel planner-active-panel">
-          <div class="section-header">
-            <div>
-              <h2>Monthly view</h2>
-              <p class="small-note">See planned days, task counts, and daily pay across the month.</p>
+          <details class="planner-calendar-dropdown" open>
+            <summary class="planner-calendar-summary">
+              <div>
+                <h2>Monthly view</h2>
+                <p class="small-note">See planned days, task counts, and daily pay across the month.</p>
+              </div>
+              <span class="pill">${formatDate(selectedDate, { month: true, year: true })}</span>
+            </summary>
+            <div class="planner-calendar-body">
+              <div class="month-grid-labels">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div class="month-grid">
+                ${monthDays
+                  .map((day) => {
+                    const taskCount = getAssignmentsForDate(day.date).length;
+                    const fee = getDayFeeSummary(day.date);
+                    return `
+                      <button class="month-cell ${day.inMonth ? "" : "month-cell-muted"} ${day.date === selectedDate ? "month-cell-active" : ""}" data-pick-date="${day.date}" type="button">
+                        <strong>${day.day}</strong>
+                        <span>${taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "Off"}</span>
+                        <small>$${fee.total.toFixed(0)}</small>
+                      </button>
+                    `;
+                  })
+                  .join("")}
+              </div>
             </div>
-          </div>
-          <div class="month-grid-labels">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-          </div>
-          <div class="month-grid">
-            ${monthDays
-              .map((day) => {
-                const taskCount = getAssignmentsForDate(day.date).length;
-                const fee = getDayFeeSummary(day.date);
-                return `
-                  <button class="month-cell ${day.inMonth ? "" : "month-cell-muted"} ${day.date === selectedDate ? "month-cell-active" : ""}" data-pick-date="${day.date}" type="button">
-                    <strong>${day.day}</strong>
-                    <span>${taskCount ? `${taskCount} task${taskCount === 1 ? "" : "s"}` : "Off"}</span>
-                    <small>$${fee.total.toFixed(0)}</small>
-                  </button>
-                `;
-              })
-              .join("")}
-          </div>
+          </details>
         </section>
       `;
       break;
