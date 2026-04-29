@@ -1180,7 +1180,7 @@ function renderPlannerPage() {
     case "month":
       activePanel = `
         <section class="panel planner-active-panel">
-          <details class="planner-calendar-dropdown" open>
+          <details class="planner-calendar-dropdown">
             <summary class="planner-calendar-summary">
               <div>
                 <h2>Monthly view</h2>
