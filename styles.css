@@ -371,6 +371,17 @@ button {
   grid-template-columns: 1fr;
 }
 
+.planner-day-form {
+  display: grid;
+  gap: 14px;
+}
+
+.planner-day-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+  justify-content: start;
+  align-items: end;
+}
+
 .field {
   display: grid;
   gap: 8px;

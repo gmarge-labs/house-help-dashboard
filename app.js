@@ -1270,8 +1270,8 @@ function renderPlannerPage() {
             <span class="pill">${tasks.length} tasks</span>
           </div>
 
-          <form id="day-details-form">
-            <div class="form-grid">
+          <form id="day-details-form" class="planner-day-form">
+            <div class="form-grid planner-day-grid">
               <div class="field">
                 <label for="arrival-window">Arrival window</label>
                 <input id="arrival-window" name="arrivalWindow" value="${escapeHtml(plan.arrivalWindow)}" placeholder="10:00 AM to 2:00 PM" />
