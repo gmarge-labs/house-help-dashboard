@@ -1306,13 +1306,15 @@ function renderPlannerPage() {
                 />
               </div>
             </div>
-            <div class="field planner-day-note-field">
-              <label for="day-note">Daily note</label>
-              <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
-            </div>
-            <div class="field planner-day-note-field">
-              <label for="private-note">Private planner note</label>
-              <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
+            <div class="planner-day-notes-row">
+              <div class="field planner-day-note-field">
+                <label for="day-note">Daily note</label>
+                <textarea id="day-note" name="note" placeholder="Start upstairs first, then finish the kitchen.">${escapeHtml(plan.note)}</textarea>
+              </div>
+              <div class="field planner-day-note-field">
+                <label for="private-note">Private planner note</label>
+                <textarea id="private-note" name="privateNote" placeholder="Private reminder for the family only.">${escapeHtml(plan.privateNote || "")}</textarea>
+              </div>
             </div>
             <div class="info-card planner-stats-card" style="margin-top: 18px;">
               <div class="info-line planner-stat">
