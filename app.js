@@ -2152,8 +2152,8 @@ function renderHelperDashboard() {
       <div class="backdrop">
         <section class="app-frame helper-frame">
           <section class="dashboard-layout">
-            <div class="dashboard-topbar helper-topline helper-singleline">
-              <div class="helper-singleline-main">
+            <section class="helper-header-grid">
+              <div class="helper-header-left">
                 <div class="field helper-select-field helper-select-inline">
                   <select id="helper-day-select">
                     ${helperDates
@@ -2169,56 +2169,53 @@ function renderHelperDashboard() {
                 </div>
                 <h2 class="page-title">Checklist for ${formatDate(selectedDate, { weekday: true })}</h2>
               </div>
-              <div class="helper-singleline-side">
-                <aside class="score-card score-card-compact">
-                  <div class="score-card-copy">
-                    <strong>${tasks.length ? `${completed}/${tasks.length}` : "0/0"}</strong>
-                    <p>tasks completed</p>
+              <section class="panel notes-footer helper-day-summary helper-day-summary-top">
+                <div class="helper-day-summary-strip">
+                  <div class="summary-chip">
+                    <strong>Plan</strong>
+                    <span>${formatHours(workload.taskHours)} / ${feeSummary.hours ? formatHours(feeSummary.hours) : "No limit"}</span>
                   </div>
-                  <div class="progress-wrap">
-                    <span>${progress}% complete</span>
-                    <div class="progress-bar">
-                      <div class="progress-fill" style="width: ${progress}%;"></div>
-                    </div>
+                  <div class="summary-chip">
+                    <strong>Pay</strong>
+                    <span>$${feeSummary.total.toFixed(2)}</span>
                   </div>
-                </aside>
-              </div>
-            </div>
-
-            <section class="panel notes-footer helper-day-summary helper-day-summary-top">
-              <div class="helper-day-summary-strip">
-                <div class="summary-chip">
-                  <strong>Plan</strong>
-                  <span>${formatHours(workload.taskHours)} / ${feeSummary.hours ? formatHours(feeSummary.hours) : "No limit"}</span>
+                  <div class="summary-chip">
+                    <strong>Timer</strong>
+                    <span>${formatElapsedTime(session.totalMs)}</span>
+                  </div>
+                  <div class="summary-chip ${workload.isOverLimit ? "summary-chip-warn" : ""}">
+                    <strong>Fit</strong>
+                    <span>${workload.isOverLimit ? `Over ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
+                  </div>
                 </div>
-                <div class="summary-chip">
-                  <strong>Pay</strong>
-                  <span>$${feeSummary.total.toFixed(2)}</span>
+                <div class="actions helper-session-actions">
+                  ${
+                    session.timerStatus === "idle" || session.timerStatus === "finished"
+                      ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
+                      : session.timerStatus === "running"
+                        ? `
+                            <button class="btn btn-secondary btn-sm" data-pause-work type="button">Pause</button>
+                            <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                          `
+                        : `
+                            <button class="btn btn-secondary btn-sm" data-resume-work type="button">Resume</button>
+                            <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
+                          `
+                  }
                 </div>
-                <div class="summary-chip">
-                  <strong>Timer</strong>
-                  <span>${formatElapsedTime(session.totalMs)}</span>
+              </section>
+              <aside class="score-card score-card-compact helper-header-score">
+                <div class="score-card-copy">
+                  <strong>${tasks.length ? `${completed}/${tasks.length}` : "0/0"}</strong>
+                  <p>tasks completed</p>
                 </div>
-                <div class="summary-chip ${workload.isOverLimit ? "summary-chip-warn" : ""}">
-                  <strong>Fit</strong>
-                  <span>${workload.isOverLimit ? `Over ${formatHours(workload.overloadHours)}` : "Within limit"}</span>
+                <div class="progress-wrap">
+                  <span>${progress}% complete</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress}%;"></div>
+                  </div>
                 </div>
-              </div>
-              <div class="actions helper-session-actions">
-                ${
-                  session.timerStatus === "idle" || session.timerStatus === "finished"
-                    ? `<button class="btn btn-primary btn-sm" data-start-work type="button">Start work</button>`
-                    : session.timerStatus === "running"
-                      ? `
-                          <button class="btn btn-secondary btn-sm" data-pause-work type="button">Pause</button>
-                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
-                        `
-                      : `
-                          <button class="btn btn-secondary btn-sm" data-resume-work type="button">Resume</button>
-                          <button class="btn btn-primary btn-sm" data-finish-work type="button">Finish work</button>
-                        `
-                }
-              </div>
+              </aside>
             </section>
 
             <section class="dashboard-content">

@@ -675,45 +675,24 @@ button {
   justify-content: flex-end;
 }
 
-.helper-topline {
-  align-items: start;
-  margin-bottom: 0;
-}
-
-.helper-topline-main {
-  display: flex;
-  align-items: end;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.helper-singleline {
+.helper-header-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 620px) 220px;
   align-items: start;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: nowrap;
 }
 
-.helper-singleline-main {
+.helper-header-left {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
   min-width: 0;
-  flex: 1;
-  flex-wrap: nowrap;
-}
-
-.helper-singleline-side {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-shrink: 0;
 }
 
 .helper-select-inline {
   margin-bottom: 0;
-  flex: 0 0 auto;
   width: 300px;
   max-width: 300px;
   align-self: flex-start;
@@ -839,7 +818,7 @@ button {
   min-height: 0;
   height: auto;
   overflow: visible;
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto;
 }
 
 .helper-task-board {
@@ -918,7 +897,7 @@ button {
 .helper-day-summary {
   width: min(620px, 100%);
   margin-top: 0;
-  justify-self: center;
+  justify-self: stretch;
 }
 
 .helper-day-summary-strip {
@@ -934,6 +913,10 @@ button {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
+}
+
+.helper-header-score {
+  justify-self: end;
 }
 
 .summary-chip {
