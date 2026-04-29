@@ -1386,24 +1386,24 @@ function renderPlannerPage() {
       ${activePanel}
 
       <section class="planner-quick-glance">
-        <div class="info-card">
-          <div class="info-line">
+        <div class="info-card planner-quick-card">
+          <div class="info-line planner-quick-stat">
             <strong>Selected date</strong>
             <span>${formatDate(selectedDate, { weekday: true })}</span>
           </div>
-          <div class="info-line">
+          <div class="info-line planner-quick-stat">
             <strong>Tasks planned</strong>
             <span>${tasks.length}</span>
           </div>
-          <div class="info-line">
+          <div class="info-line planner-quick-stat">
             <strong>Calculated pay</strong>
             <span>$${feeSummary.total.toFixed(2)}</span>
           </div>
-          <div class="info-line">
+          <div class="info-line planner-quick-stat">
             <strong>Planned task time</strong>
             <span>${formatHours(workload.taskHours)}</span>
           </div>
-          <div class="info-line">
+          <div class="info-line planner-quick-stat">
             <strong>Recurring matches</strong>
             <span>${recurringTemplates.length}</span>
           </div>
